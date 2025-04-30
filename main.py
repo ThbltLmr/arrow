@@ -1,46 +1,76 @@
 import cv2
 import mediapipe as mp
+import math
 
 def main():
-    # Initialize MediaPipe Pose
+    # Setup MediaPipe Pose
     mp_pose = mp.solutions.pose
-    pose = mp_pose.Pose(static_image_mode=True, min_detection_confidence=0.5)
-    
-    # Open the webcam (0 is usually the default camera)
+    pose = mp_pose.Pose()
+    mp_drawing = mp.solutions.drawing_utils
+
+    # Open Webcam
     cap = cv2.VideoCapture(0)
-    
-    # Wait for the camera to initialize and capture a frame
-    ret, frame = cap.read()
-    
-    if ret:
-        # Convert the BGR image to RGB before processing
+
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            print("Failed to grab frame")
+            break
+
+        # Flip the frame horizontally for a mirror-like effect
+        frame = cv2.flip(frame, 1)
+
+        # Convert to RGB
         image_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    
-        # Process the image and find pose landmarks
+        image_rgb.flags.writeable = False
+
+        # Process the frame
         results = pose.process(image_rgb)
-    
-        # Print pose landmarks if detected
-        landmarks = results.pose_landmarks
-        if landmarks:
-            # Access landmarks by their index based on the MediaPipe Pose documentation
-            left_shoulder = landmarks.landmark[mp_pose.PoseLandmark.LEFT_SHOULDER.value]
-            right_shoulder = landmarks.landmark[mp_pose.PoseLandmark.RIGHT_SHOULDER.value]
-            left_ear = landmarks.landmark[mp_pose.PoseLandmark.LEFT_EAR.value]
-            right_ear = landmarks.landmark[mp_pose.PoseLandmark.RIGHT_EAR.value]
-        
-            print(f"Left Shoulder: x={left_shoulder.x}, y={left_shoulder.y}, z={left_shoulder.z}")
-            print(f"Right Shoulder: x={right_shoulder.x}, y={right_shoulder.y}, z={right_shoulder.z}")
-            print(f"Left Ear: x={left_ear.x}, y={left_ear.y}, z={left_ear.z}")
-            print(f"Right Ear: x={right_ear.x}, y={right_ear.y}, z={right_ear.z}")
-        else:
-            print("No pose detected in the image.")
-    
-    else:
-        print("Failed to capture image")
-    
-    # Release the camera and MediaPipe Pose resources
+
+        # Convert back to BGR
+        image_rgb.flags.writeable = True
+        frame = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
+
+        if results.pose_landmarks:
+            landmarks = results.pose_landmarks.landmark
+
+            # Get Z coordinates
+            ear = landmarks[mp_pose.PoseLandmark.LEFT_EAR]
+            shoulder = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER]
+
+            depth_diff = ear.z - shoulder.z
+
+            # Set default status
+            color = (0, 255, 0)  # Green
+            status = "Good posture!"
+
+            # Evaluate posture
+            if depth_diff < -0.3:
+                color = (0, 0, 255)  # Red
+                status = "Bad slouch!"
+            elif depth_diff < -0.1:
+                color = (0, 255, 255)  # Yellow
+                status = "Slight slouch"
+
+            # Draw slouch meter bar
+            bar_length = int(min(300, max(0, (1.0 + depth_diff) * 150)))  # scale for visualization
+
+            cv2.rectangle(frame, (50, 50), (50 + bar_length, 80), color, -1)
+            cv2.putText(frame, status, (50, 45), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
+
+            # Optional: Draw pose landmarks
+            mp_drawing.draw_landmarks(
+                frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+
+        # Show frame
+        cv2.imshow('Slouch Meter', frame)
+
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
     cap.release()
-    pose.close()
+    cv2.destroyAllWindows()
 
 if __name__ == "__main__":
     main()
+
