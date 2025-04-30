@@ -45,13 +45,18 @@ def main():
         if results.pose_landmarks:
             landmarks = results.pose_landmarks.landmark
 
-            # Get Z coordinates
+            # Get coordinates
             left_ear = landmarks[mp_pose.PoseLandmark.LEFT_EAR]
             right_ear = landmarks[mp_pose.PoseLandmark.RIGHT_EAR]
             left_shoulder = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER]
             right_shoulder = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER]
 
+            # Should be < 0.33
             depth_diff = get_depth_diff(left_ear, right_ear, left_shoulder, right_shoulder)
+            # Should be < 0.1
+            slope_diff = get_tilt(left_ear, right_ear, left_shoulder, right_shoulder)
+            # Should be < 0.05
+            shoulder_slope = (left_shoulder.y - right_shoulder.y) / (left_shoulder.x - right_shoulder.x)
 
             # Set default status
             color = (0, 255, 0)  # Green
@@ -67,7 +72,7 @@ def main():
 
 
             cv2.rectangle(frame, (50, 50), (50 + bar_length, 80), color, -1)
-            cv2.putText(frame, str(depth_diff), (50, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+            cv2.putText(frame, "slouch: {slouch:.2f}, tilt: {tilt:.2f}, shoulder: {shoulder:.2f}".format(slouch=depth_diff, tilt=slope_diff, shoulder=shoulder_slope), (50, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
             # Optional: Draw pose landmarks
             mp_drawing.draw_landmarks(
