@@ -1,5 +1,6 @@
 import cv2
 import mediapipe as mp
+import math
 
 def get_depth_diff(left_ear, right_ear, left_shoulder, right_shoulder):
     avg_ear_depth = (left_ear.z + right_ear.z) / 2
@@ -8,7 +9,9 @@ def get_depth_diff(left_ear, right_ear, left_shoulder, right_shoulder):
     return depth_diff
 
 def get_tilt(left_ear, right_ear, left_shoulder, right_shoulder):
-    return True
+    ear_slope = (left_ear.y - right_ear.y) / (left_ear.x - right_ear.x)
+    shoulder_slope = (left_shoulder.y - right_shoulder.y) / (left_shoulder.x - right_shoulder.x)
+    return ear_slope - shoulder_slope
 
 def main():
     # Setup MediaPipe Pose
