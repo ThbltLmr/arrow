@@ -47,16 +47,19 @@ def main():
             color = (0, 255, 0)  # Green
 
             # Evaluate posture
-            if depth_diff > 0.3:
+            if depth_diff > 0.33:
                 color = (0, 0, 255)  # Red
-            elif depth_diff > 0.1:
+            elif depth_diff > 0.3:
                 color = (0, 255, 255)  # Yellow
 
             # Draw slouch meter bar
             bar_length = int(min(300, max(0, (1.0 + depth_diff) * 150)))  # scale for visualization
 
+            message = "Ear depth: {ear:.2f}, shoulder depth: {shoulder:.2f}, diff: {diff:.2f}".format(ear = avg_ear_depth, shoulder = avg_shoulder_depth, diff = depth_diff)
+
+
             cv2.rectangle(frame, (50, 50), (50 + bar_length, 80), color, -1)
-            cv2.putText(frame, str(depth_diff), (50, 45), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
+            cv2.putText(frame, message, (50, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
             # Optional: Draw pose landmarks
             mp_drawing.draw_landmarks(
