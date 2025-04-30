@@ -1,6 +1,5 @@
 import cv2
 import mediapipe as mp
-import math
 
 def main():
     # Setup MediaPipe Pose
@@ -35,28 +34,29 @@ def main():
             landmarks = results.pose_landmarks.landmark
 
             # Get Z coordinates
-            ear = landmarks[mp_pose.PoseLandmark.LEFT_EAR]
-            shoulder = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER]
+            left_ear = landmarks[mp_pose.PoseLandmark.LEFT_EAR]
+            right_ear = landmarks[mp_pose.PoseLandmark.RIGHT_EAR]
+            left_shoulder = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER]
+            right_shoulder = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER]
 
-            depth_diff = ear.z - shoulder.z
+            avg_ear_depth = (left_ear.z + right_ear.z) / 2
+            avg_shoulder_depth = (left_shoulder.z + right_shoulder.z) / 2
+            depth_diff = abs(avg_ear_depth - avg_shoulder_depth)
 
             # Set default status
             color = (0, 255, 0)  # Green
-            status = "Good posture!"
 
             # Evaluate posture
-            if depth_diff < -0.3:
+            if depth_diff > 0.3:
                 color = (0, 0, 255)  # Red
-                status = "Bad slouch!"
-            elif depth_diff < -0.1:
+            elif depth_diff > 0.1:
                 color = (0, 255, 255)  # Yellow
-                status = "Slight slouch"
 
             # Draw slouch meter bar
             bar_length = int(min(300, max(0, (1.0 + depth_diff) * 150)))  # scale for visualization
 
             cv2.rectangle(frame, (50, 50), (50 + bar_length, 80), color, -1)
-            cv2.putText(frame, status, (50, 45), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
+            cv2.putText(frame, str(depth_diff), (50, 45), cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
 
             # Optional: Draw pose landmarks
             mp_drawing.draw_landmarks(
