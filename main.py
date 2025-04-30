@@ -1,6 +1,15 @@
 import cv2
 import mediapipe as mp
 
+def get_depth_diff(left_ear, right_ear, left_shoulder, right_shoulder):
+    avg_ear_depth = (left_ear.z + right_ear.z) / 2
+    avg_shoulder_depth = (left_shoulder.z + right_shoulder.z) / 2
+    depth_diff = abs(avg_ear_depth - avg_shoulder_depth)
+    return depth_diff
+
+def get_tilt(left_ear, right_ear, left_shoulder, right_shoulder):
+    return True
+
 def main():
     # Setup MediaPipe Pose
     mp_pose = mp.solutions.pose
@@ -39,9 +48,7 @@ def main():
             left_shoulder = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER]
             right_shoulder = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER]
 
-            avg_ear_depth = (left_ear.z + right_ear.z) / 2
-            avg_shoulder_depth = (left_shoulder.z + right_shoulder.z) / 2
-            depth_diff = abs(avg_ear_depth - avg_shoulder_depth)
+            depth_diff = get_depth_diff(left_ear, right_ear, left_shoulder, right_shoulder)
 
             # Set default status
             color = (0, 255, 0)  # Green
@@ -55,11 +62,9 @@ def main():
             # Draw slouch meter bar
             bar_length = int(min(300, max(0, (1.0 + depth_diff) * 150)))  # scale for visualization
 
-            message = "Ear depth: {ear:.2f}, shoulder depth: {shoulder:.2f}, diff: {diff:.2f}".format(ear = avg_ear_depth, shoulder = avg_shoulder_depth, diff = depth_diff)
-
 
             cv2.rectangle(frame, (50, 50), (50 + bar_length, 80), color, -1)
-            cv2.putText(frame, message, (50, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+            cv2.putText(frame, str(depth_diff), (50, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
             # Optional: Draw pose landmarks
             mp_drawing.draw_landmarks(
