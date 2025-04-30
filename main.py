@@ -1,6 +1,12 @@
 import cv2
 import mediapipe as mp
-import math
+import socket
+import time
+
+HOST = '127.0.0.1'
+PORT = 65432
+
+POSTURES = ["STRAIGHT", "SLOUCHING", "HEAD_TILT", "BODY_TILT"]
 
 def get_depth_diff(left_ear, right_ear, left_shoulder, right_shoulder):
     avg_ear_depth = (left_ear.z + right_ear.z) / 2
