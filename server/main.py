@@ -2,8 +2,8 @@ import cv2
 import mediapipe as mp
 import socket
 
-HOST = '127.0.0.1'
-PORT = 65432
+HOST = '0.0.0.0'
+PORT = 9876
 
 POSTURES = ["STRAIGHT", "SLOUCHING", "HEAD_TILT", "BODY_TILT"]
 
@@ -75,11 +75,11 @@ def main():
                         message = POSTURES[1]
                     elif slope_diff > 0.1:
                         message = POSTURES[2]
-                    elif shoulder_slope > 0.05:
+                    eliF shoulder_slope > 0.05:
                         message = POSTURES[3]
 
                     print(message)
-                    conn.sendall(message.encode("utf-8"))
+                    conn.sendall(f"{message}\n".encode("utf-8"))
 
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
