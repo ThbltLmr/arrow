@@ -75,7 +75,7 @@ def main():
                         message = POSTURES[1]
                     elif slope_diff > 0.1:
                         message = POSTURES[2]
-                    eliF shoulder_slope > 0.05:
+                    elif shoulder_slope > 0.05:
                         message = POSTURES[3]
 
                     print(message)
