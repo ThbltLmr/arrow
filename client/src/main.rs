@@ -1,13 +1,4 @@
-use iced::{
-    executor,
-    widget::Text, // Corrected import path
-    Application,
-    Command,
-    Element,
-    Settings,
-    Subscription,
-    Theme,
-};
+use iced::{executor, widget::Text, Application, Command, Element, Settings, Subscription, Theme};
 use tokio::io::BufReader;
 use tokio::net::TcpStream;
 

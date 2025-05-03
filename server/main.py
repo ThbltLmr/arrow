@@ -30,7 +30,7 @@ def get_posture(left_ear, right_ear, left_shoulder, right_shoulder):
         return POSTURES[5]
     if shoulder_slope < -0.05:
         return POSTURES[6]
-    
+
     return POSTURES[0]
 
 def main():
