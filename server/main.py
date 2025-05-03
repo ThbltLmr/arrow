@@ -33,17 +33,6 @@ def get_posture(left_ear, right_ear, left_shoulder, right_shoulder):
     
     return POSTURES[0]
 
-def get_depth_diff(left_ear, right_ear, left_shoulder, right_shoulder):
-    avg_ear_depth = (left_ear.z + right_ear.z) / 2
-    avg_shoulder_depth = (left_shoulder.z + right_shoulder.z) / 2
-    depth_diff = abs(avg_ear_depth - avg_shoulder_depth)
-    return depth_diff
-
-def get_tilt(left_ear, right_ear, left_shoulder, right_shoulder):
-    ear_slope = (left_ear.y - right_ear.y) / (left_ear.x - right_ear.x)
-    shoulder_slope = (left_shoulder.y - right_shoulder.y) / (left_shoulder.x - right_shoulder.x)
-    return abs(ear_slope - shoulder_slope)
-
 def main():
     # Setup MediaPipe Pose
     mp_pose = mp.solutions.pose
