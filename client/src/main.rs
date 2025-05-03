@@ -100,7 +100,7 @@ mod subscription {
                 State::Disconnected => {
                     // Optional: Introduce a delay before retrying connection
                     // sleep(Duration::from_secs(5)).await;
-                    match TcpStream::connect("192.168.1.157:9876").await {
+                    match TcpStream::connect("127.0.0.1:9876").await {
                         Ok(stream) => {
                             let reader = BufReader::new(stream);
                             // On success, send Connected message and change state
