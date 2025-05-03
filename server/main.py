@@ -2,10 +2,36 @@ import cv2
 import mediapipe as mp
 import socket
 
-HOST = '0.0.0.0'
+HOST = '127.0.0.1'
 PORT = 9876
 
-POSTURES = ["STRAIGHT", "SLOUCHING", "HEAD_TILT", "BODY_TILT"]
+POSTURES = ["STRAIGHT", "SLOUCHING_BACK", "LEANING_IN", "HEAD_TILT_RIGHT", "HEAD_TILT_LEFT", "BODY_TILT_RIGHT", "BODY_TILT_LEFT"]
+
+def get_posture(left_ear, right_ear, left_shoulder, right_shoulder):
+    avg_ear_depth = (left_ear.z + right_ear.z) / 2
+    avg_shoulder_depth = (left_shoulder.z + right_shoulder.z) / 2
+    # Check slouching
+    if avg_ear_depth + 0.2 < avg_shoulder_depth and avg_shoulder_depth > -0.33:
+        print(str(f"{avg_ear_depth}, {avg_shoulder_depth}"))
+        return POSTURES[1]
+    if avg_ear_depth + 0.33 < avg_shoulder_depth:
+        return POSTURES[2]
+
+    # Check head tilt
+    ear_slope = (left_ear.y - right_ear.y) / (left_ear.x - right_ear.x)
+    if ear_slope > 0.05:
+        return POSTURES[3]
+    if ear_slope < -0.05:
+        return POSTURES[4]
+
+    # Check body tilt
+    shoulder_slope = (left_shoulder.y - right_shoulder.y) / (left_shoulder.x - right_shoulder.x)
+    if shoulder_slope > 0.05:
+        return POSTURES[5]
+    if shoulder_slope < -0.05:
+        return POSTURES[6]
+    
+    return POSTURES[0]
 
 def get_depth_diff(left_ear, right_ear, left_shoulder, right_shoulder):
     avg_ear_depth = (left_ear.z + right_ear.z) / 2
@@ -16,7 +42,7 @@ def get_depth_diff(left_ear, right_ear, left_shoulder, right_shoulder):
 def get_tilt(left_ear, right_ear, left_shoulder, right_shoulder):
     ear_slope = (left_ear.y - right_ear.y) / (left_ear.x - right_ear.x)
     shoulder_slope = (left_shoulder.y - right_shoulder.y) / (left_shoulder.x - right_shoulder.x)
-    return ear_slope - shoulder_slope
+    return abs(ear_slope - shoulder_slope)
 
 def main():
     # Setup MediaPipe Pose
@@ -62,22 +88,8 @@ def main():
                     left_shoulder = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER]
                     right_shoulder = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER]
         
-                    # Should be < 0.33
-                    depth_diff = get_depth_diff(left_ear, right_ear, left_shoulder, right_shoulder)
-                    # Should be < 0.1
-                    slope_diff = get_tilt(left_ear, right_ear, left_shoulder, right_shoulder)
-                    # Should be < 0.05
-                    shoulder_slope = (left_shoulder.y - right_shoulder.y) / (left_shoulder.x - right_shoulder.x)
-
-                    message = POSTURES[0]
+                    message = get_posture(left_ear, right_ear, left_shoulder, right_shoulder)
                     
-                    if depth_diff > 0.33:
-                        message = POSTURES[1]
-                    elif slope_diff > 0.1:
-                        message = POSTURES[2]
-                    elif shoulder_slope > 0.05:
-                        message = POSTURES[3]
-
                     print(message)
                     conn.sendall(f"{message}\n".encode("utf-8"))
 
