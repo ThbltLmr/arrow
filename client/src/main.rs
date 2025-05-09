@@ -7,8 +7,23 @@ async fn main() -> iced::Result {
     PostureApp::run(Settings::default())
 }
 
+struct PostureMetrics {
+    left_ear: Point3D,
+    right_ear: Point3D,
+    left_shoulder: Point3D,
+    right_shoulder: Point3D,
+}
+
+struct Point3D {
+    x: f32,
+    y: f32,
+    z: f32,
+    visibility: f32,
+}
+
 struct PostureApp {
     posture: String,
+    raw_metrics: Option<PostureMetrics>,
 }
 
 #[derive(Debug, Clone)]
@@ -24,6 +39,50 @@ enum State {
     Connected(BufReader<TcpStream>),
 }
 
+impl PostureApp {
+    fn determine_posture(&self) -> String {
+        if let Some(metrics) = &self.raw_metrics {
+            // Calculate avg depths
+            let avg_ear_depth = (metrics.left_ear.z + metrics.right_ear.z) / 2.0;
+            let avg_shoulder_depth = (metrics.left_shoulder.z + metrics.right_shoulder.z) / 2.0;
+
+            // Check slouching
+            if avg_ear_depth + 0.2 < avg_shoulder_depth && avg_shoulder_depth > -0.33 {
+                return "SLOUCHING_BACK".to_string();
+            }
+            if avg_ear_depth + 0.33 < avg_shoulder_depth {
+                return "LEANING_IN".to_string();
+            }
+
+            // Calculate ear slope for head tilt
+            let ear_slope = (metrics.left_ear.y - metrics.right_ear.y)
+                / (metrics.left_ear.x - metrics.right_ear.x);
+            if ear_slope > 0.05 {
+                return "HEAD_TILT_RIGHT".to_string();
+            }
+            if ear_slope < -0.05 {
+                return "HEAD_TILT_LEFT".to_string();
+            }
+
+            // Calculate shoulder slope for body tilt
+            let shoulder_slope = (metrics.left_shoulder.y - metrics.right_shoulder.y)
+                / (metrics.left_shoulder.x - metrics.right_shoulder.x);
+            if shoulder_slope > 0.05 {
+                return "BODY_TILT_RIGHT".to_string();
+            }
+            if shoulder_slope < -0.05 {
+                return "BODY_TILT_LEFT".to_string();
+            }
+
+            // Default to STRAIGHT
+            return "STRAIGHT".to_string();
+        }
+
+        // If no metrics available
+        "UNKNOWN".to_string()
+    }
+}
+
 impl Application for PostureApp {
     type Executor = executor::Default;
     type Message = Message;
@@ -34,6 +93,7 @@ impl Application for PostureApp {
         (
             PostureApp {
                 posture: "Connecting...".into(), // Initial state message
+                raw_metrics: None,
             },
             Command::none(), // Subscription will initiate connection attempt
         )
@@ -45,9 +105,42 @@ impl Application for PostureApp {
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         match message {
-            Message::PostureUpdate(p) => {
-                self.posture = p; // Update posture text from received data
+            Message::PostureUpdate(metrics_str) => {
+                // Parse the raw metrics
+                let parts: Vec<&str> = metrics_str.split('|').collect();
+                if parts.len() >= 16 {
+                    let metrics = PostureMetrics {
+                        left_ear: Point3D {
+                            x: parts[0].parse::<f32>().unwrap_or(0.0),
+                            y: parts[1].parse::<f32>().unwrap_or(0.0),
+                            z: parts[2].parse::<f32>().unwrap_or(0.0),
+                            visibility: parts[3].parse::<f32>().unwrap_or(0.0),
+                        },
+                        right_ear: Point3D {
+                            x: parts[4].parse::<f32>().unwrap_or(0.0),
+                            y: parts[5].parse::<f32>().unwrap_or(0.0),
+                            z: parts[6].parse::<f32>().unwrap_or(0.0),
+                            visibility: parts[7].parse::<f32>().unwrap_or(0.0),
+                        },
+                        left_shoulder: Point3D {
+                            x: parts[8].parse::<f32>().unwrap_or(0.0),
+                            y: parts[9].parse::<f32>().unwrap_or(0.0),
+                            z: parts[10].parse::<f32>().unwrap_or(0.0),
+                            visibility: parts[11].parse::<f32>().unwrap_or(0.0),
+                        },
+                        right_shoulder: Point3D {
+                            x: parts[12].parse::<f32>().unwrap_or(0.0),
+                            y: parts[13].parse::<f32>().unwrap_or(0.0),
+                            z: parts[14].parse::<f32>().unwrap_or(0.0),
+                            visibility: parts[15].parse::<f32>().unwrap_or(0.0),
+                        },
+                    };
+
+                    self.raw_metrics = Some(metrics);
+                    self.posture = self.determine_posture();
+                }
             }
+
             Message::Connected(Ok(())) => {
                 self.posture = "Connected. Waiting for data...".into(); // Update UI on successful connection
             }
