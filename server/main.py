@@ -10,6 +10,7 @@ POSTURES = ["STRAIGHT", "SLOUCHING_BACK", "LEANING_IN", "HEAD_TILT_RIGHT", "HEAD
 def get_posture(left_ear, right_ear, left_shoulder, right_shoulder):
     avg_ear_depth = (left_ear.z + right_ear.z) / 2
     avg_shoulder_depth = (left_shoulder.z + right_shoulder.z) / 2
+    
     # Check slouching
     if avg_ear_depth + 0.2 < avg_shoulder_depth and avg_shoulder_depth > -0.33:
         print(str(f"{avg_ear_depth}, {avg_shoulder_depth}"))
@@ -31,6 +32,7 @@ def get_posture(left_ear, right_ear, left_shoulder, right_shoulder):
     if shoulder_slope < -0.05:
         return POSTURES[6]
 
+    # Default to STRAIGHT
     return POSTURES[0]
 
 def main():
@@ -77,10 +79,16 @@ def main():
                     left_shoulder = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER]
                     right_shoulder = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER]
         
-                    message = get_posture(left_ear, right_ear, left_shoulder, right_shoulder)
-                    
-                    print(message)
-                    conn.sendall(f"{message}\n".encode("utf-8"))
+                    metrics = (
+                        f"{left_ear.x:.4f}|{left_ear.y:.4f}|{left_ear.z:.4f}|{left_ear.visibility:.4f}|"
+                        f"{right_ear.x:.4f}|{right_ear.y:.4f}|{right_ear.z:.4f}|{right_ear.visibility:.4f}|"
+                        f"{left_shoulder.x:.4f}|{left_shoulder.y:.4f}|{left_shoulder.z:.4f}|{left_shoulder.visibility:.4f}|"
+                        f"{right_shoulder.x:.4f}|{right_shoulder.y:.4f}|{right_shoulder.z:.4f}\n{right_shoulder.visibility:.4f}|"
+                    )
+
+                    print(metrics)
+
+                    conn.sendall(metrics.encode("utf-8"))
 
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
