@@ -29,7 +29,7 @@ struct PostureApp {
 #[derive(Debug, Clone)]
 enum Message {
     PostureUpdate(String),
-    Connected(Result<(), String>), // Use String to pass error message if any
+    Connected(Result<(), String>),
     Disconnected,
 }
 
@@ -45,6 +45,11 @@ impl PostureApp {
             // Calculate avg depths
             let avg_ear_depth = (metrics.left_ear.z + metrics.right_ear.z) / 2.0;
             let avg_shoulder_depth = (metrics.left_shoulder.z + metrics.right_shoulder.z) / 2.0;
+
+            println!(
+                "Ear Depth {}, Shoulder Depth {}",
+                avg_ear_depth, avg_shoulder_depth
+            );
 
             // Check slouching
             if avg_ear_depth + 0.2 < avg_shoulder_depth && avg_shoulder_depth > -0.33 {
@@ -108,7 +113,7 @@ impl Application for PostureApp {
             Message::PostureUpdate(metrics_str) => {
                 // Parse the raw metrics
                 let parts: Vec<&str> = metrics_str.split('|').collect();
-                if parts.len() >= 16 {
+                if parts.len() == 16 {
                     let metrics = PostureMetrics {
                         left_ear: Point3D {
                             x: parts[0].parse::<f32>().unwrap_or(0.0),

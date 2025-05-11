@@ -83,7 +83,7 @@ def main():
                         f"{left_ear.x:.4f}|{left_ear.y:.4f}|{left_ear.z:.4f}|{left_ear.visibility:.4f}|"
                         f"{right_ear.x:.4f}|{right_ear.y:.4f}|{right_ear.z:.4f}|{right_ear.visibility:.4f}|"
                         f"{left_shoulder.x:.4f}|{left_shoulder.y:.4f}|{left_shoulder.z:.4f}|{left_shoulder.visibility:.4f}|"
-                        f"{right_shoulder.x:.4f}|{right_shoulder.y:.4f}|{right_shoulder.z:.4f}|{right_shoulder.visibility:.4f}"
+                        f"{right_shoulder.x:.4f}|{right_shoulder.y:.4f}|{right_shoulder.z:.4f}|{right_shoulder.visibility:.4f}\r\n"
                     )
 
                     print(metrics)
