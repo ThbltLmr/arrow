@@ -46,9 +46,25 @@ enum State {
 impl PostureApp {
     fn determine_posture(&self) -> String {
         if let Some(metrics) = &self.raw_metrics {
+            // Check visibility
+            let PostureMetrics {
+                left_ear,
+                right_ear,
+                left_shoulder,
+                right_shoulder,
+            } = metrics;
+
+            if left_shoulder.visibility < 0.9 || right_shoulder.visibility < 0.9 {
+                return "SHOULDERS_NOT_VISIBLE".to_string();
+            }
+
+            if left_ear.visibility < 0.9 || right_ear.visibility < 0.9 {
+                return "HEAD_NOT_VISIBLE".to_string();
+            }
+
             // Calculate avg depths
-            let avg_ear_depth = (metrics.left_ear.z + metrics.right_ear.z) / 2.0;
-            let avg_shoulder_depth = (metrics.left_shoulder.z + metrics.right_shoulder.z) / 2.0;
+            let avg_ear_depth = (left_ear.z + right_ear.z) / 2.0;
+            let avg_shoulder_depth = (left_shoulder.z + right_shoulder.z) / 2.0;
 
             // Check slouching
             if avg_ear_depth + 0.2 < avg_shoulder_depth && avg_shoulder_depth > -0.33 {
@@ -59,8 +75,7 @@ impl PostureApp {
             }
 
             // Calculate ear slope for head tilt
-            let ear_slope = (metrics.left_ear.y - metrics.right_ear.y)
-                / (metrics.left_ear.x - metrics.right_ear.x);
+            let ear_slope = (left_ear.y - right_ear.y) / (left_ear.x - right_ear.x);
             if ear_slope > 0.05 {
                 return "HEAD_TILT_RIGHT".to_string();
             }
@@ -69,8 +84,8 @@ impl PostureApp {
             }
 
             // Calculate shoulder slope for body tilt
-            let shoulder_slope = (metrics.left_shoulder.y - metrics.right_shoulder.y)
-                / (metrics.left_shoulder.x - metrics.right_shoulder.x);
+            let shoulder_slope =
+                (left_shoulder.y - right_shoulder.y) / (left_shoulder.x - right_shoulder.x);
             if shoulder_slope > 0.05 {
                 return "BODY_TILT_RIGHT".to_string();
             }
