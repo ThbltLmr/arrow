@@ -166,13 +166,14 @@ impl Application for PostureApp {
     }
 
     fn view(&self) -> Element<'_, Self::Message> {
-        return column![
-            svg(svg::Handle::from_path("./src/assets/good_posture.svg"))
-                .height(40)
-                .width(40),
-            Text::new(&self.posture).size(40),
-        ]
-        .into();
+        // TODO: Generate SVGs for other postures
+        let svg_path: &str = match self.posture {
+            _ => "./src/assets/good_posture.svg",
+        };
+
+        let svg = svg(svg::Handle::from_path(svg_path)).height(40).width(40);
+
+        return column![svg, Text::new(&self.posture).size(40)].into();
     }
 
     fn subscription(&self) -> Subscription<Self::Message> {
