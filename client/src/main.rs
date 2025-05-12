@@ -3,6 +3,7 @@ use iced::{
     widget::{column, svg, Text},
     Application, Command, Element, Settings, Subscription, Theme,
 };
+use notify_rust::Notification;
 use tokio::io::BufReader;
 use tokio::net::TcpStream;
 
@@ -155,8 +156,23 @@ impl Application for PostureApp {
                         },
                     };
 
+                    let previous_posture = self.posture.clone();
+
                     self.raw_metrics = Some(metrics);
                     self.posture = self.determine_posture();
+
+                    if self.posture != "STRAIGHT" && self.posture != previous_posture {
+                        let svg_path: &str = match self.posture {
+                            _ => "./src/assets/good_posture.svg",
+                        };
+
+                        let _ = Notification::new()
+                            .summary("Bad posture!")
+                            .body("Sit up straight")
+                            .icon(svg_path)
+                            .show()
+                            .unwrap();
+                    }
                 }
             }
 
