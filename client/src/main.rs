@@ -50,11 +50,6 @@ impl PostureApp {
             let avg_ear_depth = (metrics.left_ear.z + metrics.right_ear.z) / 2.0;
             let avg_shoulder_depth = (metrics.left_shoulder.z + metrics.right_shoulder.z) / 2.0;
 
-            println!(
-                "Ear Depth {}, Shoulder Depth {}",
-                avg_ear_depth, avg_shoulder_depth
-            );
-
             // Check slouching
             if avg_ear_depth + 0.2 < avg_shoulder_depth && avg_shoulder_depth > -0.33 {
                 return "SLOUCHING_BACK".to_string();
