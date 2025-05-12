@@ -1,9 +1,11 @@
+use std::time::Duration;
+
 use iced::{
     executor,
     widget::{column, svg, Text},
     Application, Command, Element, Settings, Subscription, Theme,
 };
-use notify_rust::Notification;
+use notify_rust::{Notification, NotificationHandle};
 use tokio::io::BufReader;
 use tokio::net::TcpStream;
 
@@ -29,6 +31,7 @@ struct Point3D {
 struct PostureApp {
     posture: String,
     raw_metrics: Option<PostureMetrics>,
+    notification: NotificationHandle,
 }
 
 #[derive(Debug, Clone)]
@@ -77,20 +80,20 @@ impl PostureApp {
 
             // Calculate ear slope for head tilt
             let ear_slope = (left_ear.y - right_ear.y) / (left_ear.x - right_ear.x);
-            if ear_slope > 0.05 {
+            if ear_slope > 0.10 {
                 return "HEAD_TILT_RIGHT".to_string();
             }
-            if ear_slope < -0.05 {
+            if ear_slope < -0.10 {
                 return "HEAD_TILT_LEFT".to_string();
             }
 
             // Calculate shoulder slope for body tilt
             let shoulder_slope =
                 (left_shoulder.y - right_shoulder.y) / (left_shoulder.x - right_shoulder.x);
-            if shoulder_slope > 0.05 {
+            if shoulder_slope > 0.10 {
                 return "BODY_TILT_RIGHT".to_string();
             }
-            if shoulder_slope < -0.05 {
+            if shoulder_slope < -0.10 {
                 return "BODY_TILT_LEFT".to_string();
             }
 
@@ -114,6 +117,7 @@ impl Application for PostureApp {
             PostureApp {
                 posture: "Connecting...".into(), // Initial state message
                 raw_metrics: None,
+                notification: Notification::new().show().unwrap(),
             },
             Command::none(), // Subscription will initiate connection attempt
         )
@@ -161,17 +165,24 @@ impl Application for PostureApp {
                     self.raw_metrics = Some(metrics);
                     self.posture = self.determine_posture();
 
-                    if self.posture != "STRAIGHT" && self.posture != previous_posture {
-                        let svg_path: &str = match self.posture {
-                            _ => "./src/assets/good_posture.svg",
-                        };
+                    if self.posture != previous_posture {
+                        if self.posture == "STRAIGHT" {
+                            self.notification
+                                .summary("Well done!")
+                                .body("Back to sitting straight, good job!")
+                                .timeout(Duration::from_secs(1));
+                            self.notification.update();
+                        } else {
+                            self.notification
+                                .summary("Bad posture!")
+                                .body(&format!(
+                                    "You should correct your posture. Current posture detected: {}",
+                                    self.posture
+                                ))
+                                .timeout(0);
 
-                        let _ = Notification::new()
-                            .summary("Bad posture!")
-                            .body("Sit up straight")
-                            .icon(svg_path)
-                            .show()
-                            .unwrap();
+                            self.notification.update();
+                        }
                     }
                 }
             }
