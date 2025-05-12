@@ -1,4 +1,8 @@
-use iced::{executor, widget::Text, Application, Command, Element, Settings, Subscription, Theme};
+use iced::{
+    executor,
+    widget::{column, svg, Text},
+    Application, Command, Element, Settings, Subscription, Theme,
+};
 use tokio::io::BufReader;
 use tokio::net::TcpStream;
 
@@ -149,23 +153,31 @@ impl Application for PostureApp {
             Message::Connected(Ok(())) => {
                 self.posture = "Connected. Waiting for data...".into(); // Update UI on successful connection
             }
+
             Message::Connected(Err(e)) => {
                 // Update UI on connection failure, include error message
                 self.posture = format!("Connection failed: {}. Retrying...", e);
                 // The subscription logic itself handles the retry by staying in Disconnected state
             }
+
             Message::Disconnected => {
                 // Update UI when disconnected (e.g., server closed connection, read error)
                 self.posture = "Disconnected. Retrying...".into();
                 // The subscription logic handles the retry
             }
         }
+
         Command::none() // No further commands needed from update logic
     }
 
-    fn view(&self) -> Element<Self::Message> {
-        // Display the current posture string
-        Text::new(&self.posture).size(40).into()
+    fn view(&self) -> Element<'_, Self::Message> {
+        return column![
+            svg(svg::Handle::from_path("./src/assets/good_posture.svg"))
+                .height(40)
+                .width(40),
+            Text::new(&self.posture).size(40),
+        ]
+        .into();
     }
 
     fn subscription(&self) -> Subscription<Self::Message> {
