@@ -13,7 +13,6 @@ def get_posture(left_ear, right_ear, left_shoulder, right_shoulder):
     
     # Check slouching
     if avg_ear_depth + 0.2 < avg_shoulder_depth and avg_shoulder_depth > -0.33:
-        print(str(f"{avg_ear_depth}, {avg_shoulder_depth}"))
         return POSTURES[1]
     if avg_ear_depth + 0.33 < avg_shoulder_depth:
         return POSTURES[2]
