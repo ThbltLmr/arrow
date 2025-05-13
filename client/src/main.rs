@@ -32,7 +32,7 @@ struct Point3D {
 struct PostureApp {
     posture: String,
     raw_metrics: Option<PostureMetrics>,
-    notification: NotificationHandle,
+    notification: Option<NotificationHandle>,
 }
 
 #[derive(Debug, Clone)]
@@ -118,7 +118,7 @@ impl Application for PostureApp {
             PostureApp {
                 posture: "Connecting...".into(), // Initial state message
                 raw_metrics: None,
-                notification: Notification::new().show().unwrap(),
+                notification: Some(Notification::new().show().unwrap()),
             },
             Command::none(), // Subscription will initiate connection attempt
         )
@@ -168,21 +168,27 @@ impl Application for PostureApp {
 
                     if self.posture != previous_posture {
                         if self.posture == "STRAIGHT" {
-                            self.notification
-                                .summary("Well done!")
-                                .body("Back to sitting straight, good job!")
-                                .timeout(Duration::from_secs(1));
-                            self.notification.update();
+                            if let Some(mut handle) = self.notification.take() {
+                                handle
+                                    .summary("Well done!")
+                                    .body("Back to sitting straight, good job!")
+                                    .timeout(Duration::from_secs(1));
+                                handle.update();
+                                self.notification = Some(handle);
+                            }
                         } else {
-                            self.notification
-                                .summary("Bad posture!")
-                                .body(&format!(
+                            if let Some(mut handle) = self.notification.take() {
+                                handle
+                                    .summary("Bad posture!")
+                                    .body(&format!(
                                     "You should correct your posture. Current posture detected: {}",
                                     self.posture
                                 ))
-                                .timeout(0);
+                                    .timeout(0);
 
-                            self.notification.update();
+                                handle.update();
+                                self.notification = Some(handle);
+                            }
                         }
                     }
                 }
