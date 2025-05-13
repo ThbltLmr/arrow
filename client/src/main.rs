@@ -118,12 +118,24 @@ impl Application for PostureApp {
     type Flags = ();
 
     fn new(_flags: ()) -> (Self, Command<Self::Message>) {
+        let db_manager = match DbManager::new() {
+            Ok(manager) => {
+                if let Err(e) = manager.log_session_start() {
+                    eprintln!("Failed to log session start: {}", e);
+                }
+                Some(manager)
+            }
+            Err(e) => {
+                eprintln!("Failed to initialize database: {}", e);
+                None
+            }
+        };
         (
             PostureApp {
                 posture: "Connecting...".into(), // Initial state message
                 raw_metrics: None,
                 notification: Some(Notification::new().show().unwrap()),
-                db_manager: Some(DbManager::new().unwrap()),
+                db_manager,
             },
             Command::none(), // Subscription will initiate connection attempt
         )
@@ -172,6 +184,11 @@ impl Application for PostureApp {
                     self.posture = self.determine_posture();
 
                     if self.posture != previous_posture {
+                        if let Some(manager) = self.db_manager.take() {
+                            let _ = manager.log_posture_change(&self.posture, &previous_posture);
+                            self.db_manager = Some(manager);
+                        }
+
                         if self.posture == "STRAIGHT" {
                             if let Some(mut handle) = self.notification.take() {
                                 handle
@@ -313,6 +330,9 @@ impl Drop for PostureApp {
     fn drop(&mut self) {
         if let Some(handle) = self.notification.take() {
             handle.close();
+        }
+        if let Some(manager) = self.db_manager.take() {
+            manager.log_session_end(&self.posture).unwrap();
         }
     }
 }
