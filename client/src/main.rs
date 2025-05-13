@@ -209,9 +209,9 @@ impl Application for PostureApp {
     }
 
     fn view(&self) -> Element<'_, Self::Message> {
-        // TODO: Generate SVGs for other postures
-        let svg_path: &str = match self.posture {
-            _ => "./src/assets/good_posture.svg",
+        let svg_path: &str = match self.posture.as_str() {
+            "STRAIGHT" => "./src/assets/good_posture.svg",
+            _ => "./src/assets/bad_posture.svg",
         };
 
         let svg_widget = svg(svg::Handle::from_path(svg_path)).height(100).width(100);
