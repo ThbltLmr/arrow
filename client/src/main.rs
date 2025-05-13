@@ -1,3 +1,5 @@
+mod db_manager;
+
 use std::time::Duration;
 
 use iced::{
