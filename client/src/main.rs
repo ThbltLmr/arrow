@@ -2,6 +2,7 @@ mod db_manager;
 
 use std::time::Duration;
 
+use db_manager::DbManager;
 use iced::{
     executor,
     widget::{column, svg, Container, Text},
@@ -35,6 +36,7 @@ struct PostureApp {
     posture: String,
     raw_metrics: Option<PostureMetrics>,
     notification: Option<NotificationHandle>,
+    db_manager: Option<DbManager>,
 }
 
 #[derive(Debug, Clone)]
@@ -121,6 +123,7 @@ impl Application for PostureApp {
                 posture: "Connecting...".into(), // Initial state message
                 raw_metrics: None,
                 notification: Some(Notification::new().show().unwrap()),
+                db_manager: Some(DbManager::new().unwrap()),
             },
             Command::none(), // Subscription will initiate connection attempt
         )
