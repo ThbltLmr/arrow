@@ -303,3 +303,11 @@ mod subscription {
         })
     }
 }
+
+impl Drop for PostureApp {
+    fn drop(&mut self) {
+        if let Some(handle) = self.notification.take() {
+            handle.close();
+        }
+    }
+}
