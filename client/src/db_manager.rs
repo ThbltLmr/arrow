@@ -33,12 +33,30 @@ impl DbManager {
                 event_type TEXT NOT NULL,
                 posture TEXT NOT NULL,
                 previous_posture TEXT,
-                ear_slope REAL,
-                shoulder_slope REAL,
-                ear_depth_diff REAL,
-                shoulder_depth_diff REAL
             )",
             [],
+        )?;
+
+        Ok(())
+    }
+
+    pub fn log_session_start(&self) -> SqlResult<()> {
+        self.conn.execute(
+            "INSERT INTO posture_events 
+             (timestamp, event_type, posture, previous_posture)
+             VALUES (datetime('now'), 'START', 'UNKNOWN', NULL)",
+            [],
+        )?;
+
+        Ok(())
+    }
+
+    pub fn log_session_end(&self, last_posture: &str) -> SqlResult<()> {
+        self.conn.execute(
+            "INSERT INTO posture_events 
+             (timestamp, event_type, posture, previous_posture)
+             VALUES (datetime('now'), 'STOP', ?, NULL)",
+            [last_posture],
         )?;
 
         Ok(())
