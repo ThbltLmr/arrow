@@ -149,6 +149,10 @@ impl Application for PostureApp {
         match message {
             Message::PostureUpdate(metrics_str) => {
                 // Parse the raw metrics
+                if let Some(manager) = self.db_manager.take() {
+                    println!("{:?}", manager.get_last_logs(1).unwrap());
+                    self.db_manager = Some(manager);
+                }
                 let parts: Vec<&str> = metrics_str.split('|').collect();
                 if parts.len() == 16 {
                     let metrics = PostureMetrics {

@@ -2,6 +2,7 @@ use rusqlite::{Connection, Result as SqlResult};
 use std::fs;
 use std::path::PathBuf;
 
+#[derive(Debug)]
 pub struct EventLog {
     timestamp: String,
     event_type: String,
