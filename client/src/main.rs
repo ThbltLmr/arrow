@@ -2,8 +2,9 @@ use std::time::Duration;
 
 use iced::{
     executor,
-    widget::{column, svg, Text},
-    Application, Command, Element, Settings, Subscription, Theme,
+    widget::{column, svg, Container, Text},
+    Alignment::Center,
+    Application, Command, Element, Length, Settings, Subscription, Theme,
 };
 use notify_rust::{Notification, NotificationHandle};
 use tokio::io::BufReader;
@@ -213,9 +214,18 @@ impl Application for PostureApp {
             _ => "./src/assets/good_posture.svg",
         };
 
-        let svg = svg(svg::Handle::from_path(svg_path)).height(40).width(40);
+        let svg_widget = svg(svg::Handle::from_path(svg_path)).height(100).width(100);
 
-        return column![svg, Text::new(&self.posture).size(40)].into();
+        let content = column![svg_widget, Text::new(&self.posture).size(40)]
+            .align_items(Center)
+            .spacing(20);
+
+        return Container::new(content)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .center_x()
+            .center_y()
+            .into();
     }
 
     fn subscription(&self) -> Subscription<Self::Message> {
