@@ -2,6 +2,13 @@ use rusqlite::{Connection, Result as SqlResult};
 use std::fs;
 use std::path::PathBuf;
 
+pub struct EventLog {
+    timestamp: String,
+    event_type: String,
+    posture: String,
+    previous_posture: Option<String>,
+}
+
 pub struct DbManager {
     conn: Connection,
 }
@@ -71,6 +78,30 @@ impl DbManager {
         )?;
 
         Ok(())
+    }
+
+    pub fn get_last_logs(
+        &self,
+        number: usize,
+    ) -> Result<Vec<EventLog>, Box<dyn std::error::Error>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT timestamp, event_type, posture, previous_posture
+                                            FROM posture_events
+                                            ORDER BY timestamp DESC LIMIT ?",
+        )?;
+        let log_iter = stmt.query_map([number], |row| {
+            Ok(EventLog {
+                timestamp: row.get(0)?,
+                event_type: row.get(1)?,
+                posture: row.get(2)?,
+                previous_posture: row.get(3)?,
+            })
+        });
+
+        Ok(log_iter
+            .unwrap()
+            .map(|res| res.unwrap())
+            .collect::<Vec<EventLog>>())
     }
 
     fn get_app_data_dir() -> PathBuf {
