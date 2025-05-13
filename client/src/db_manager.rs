@@ -40,7 +40,7 @@ impl DbManager {
                 timestamp TEXT NOT NULL,
                 event_type TEXT NOT NULL,
                 posture TEXT NOT NULL,
-                previous_posture TEXT,
+                previous_posture TEXT
             )",
             [],
         )?;
