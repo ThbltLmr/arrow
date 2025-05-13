@@ -7,4 +7,5 @@ edition = "2021"
 iced = { version = "0.10", features = ["tokio", "svg"] }
 tokio = { version = "1", features = ["full"] }
 notify-rust = "4"
-
+rusqlite = { version = "0.35.0", features = ["bundled"] }
+dirs = "5.0.1"
