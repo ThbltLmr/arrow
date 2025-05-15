@@ -2,7 +2,7 @@ mod db_manager;
 
 use std::time::Duration;
 
-use db_manager::DbManager;
+use db_manager::{DbManager, EventLog};
 use iced::{
     executor,
     widget::{column, svg, Container, Text},
@@ -37,6 +37,7 @@ struct PostureApp {
     raw_metrics: Option<PostureMetrics>,
     notification: Option<NotificationHandle>,
     db_manager: Option<DbManager>,
+    last_logs: Option<Vec<EventLog>>,
 }
 
 #[derive(Debug, Clone)]
@@ -136,6 +137,7 @@ impl Application for PostureApp {
                 raw_metrics: None,
                 notification: Some(Notification::new().show().unwrap()),
                 db_manager,
+                last_logs: None,
             },
             Command::none(), // Subscription will initiate connection attempt
         )
@@ -150,7 +152,7 @@ impl Application for PostureApp {
             Message::PostureUpdate(metrics_str) => {
                 // Parse the raw metrics
                 if let Some(manager) = self.db_manager.take() {
-                    println!("{:?}", manager.get_last_logs(1).unwrap());
+                    self.last_logs = manager.get_last_logs(6)
                     self.db_manager = Some(manager);
                 }
                 let parts: Vec<&str> = metrics_str.split('|').collect();
