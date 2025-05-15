@@ -152,7 +152,7 @@ impl Application for PostureApp {
             Message::PostureUpdate(metrics_str) => {
                 // Parse the raw metrics
                 if let Some(manager) = self.db_manager.take() {
-                    self.last_logs = manager.get_last_logs(6)
+                    self.last_logs = Some(manager.get_last_logs(6).unwrap());
                     self.db_manager = Some(manager);
                 }
                 let parts: Vec<&str> = metrics_str.split('|').collect();
