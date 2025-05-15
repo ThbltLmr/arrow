@@ -2,12 +2,12 @@ use rusqlite::{Connection, Result as SqlResult};
 use std::fs;
 use std::path::PathBuf;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct EventLog {
     timestamp: String,
     event_type: String,
-    posture: String,
-    previous_posture: Option<String>,
+    pub posture: String,
+    pub previous_posture: Option<String>,
 }
 
 pub struct DbManager {

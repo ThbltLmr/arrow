@@ -250,9 +250,22 @@ impl Application for PostureApp {
 
         let svg_widget = svg(svg::Handle::from_path(svg_path)).height(100).width(100);
 
-        let content = column![svg_widget, Text::new(&self.posture).size(40)]
+        let mut content = column![svg_widget, Text::new(&self.posture).size(40)]
             .align_items(Center)
             .spacing(20);
+
+        if let Some(events) = self.last_logs.clone() {
+            let event_iter = events.clone().into_iter();
+            let logs = event_iter
+                .map(|event| {
+                    Text::new(event.previous_posture.unwrap_or(String::from("UNKNOWN"))).size(10)
+                })
+                .collect::<Vec<Text>>();
+
+            for log in logs {
+                content = content.push(log.clone());
+            }
+        }
 
         return Container::new(content)
             .width(Length::Fill)
