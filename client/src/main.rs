@@ -267,7 +267,12 @@ impl Application for Arrow {
                 let event_iter = events.clone().into_iter();
                 let logs = event_iter
                     .map(|event| {
-                        Text::new(format!("{} for {:?}", event.posture, event.duration)).size(10)
+                        Text::new(format!(
+                            "{} for {:?}",
+                            Posture::from(event.posture).get_posture_message(),
+                            event.duration
+                        ))
+                        .size(10)
                     })
                     .collect::<Vec<Text>>();
 
