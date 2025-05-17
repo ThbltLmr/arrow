@@ -15,7 +15,7 @@ use tokio::net::TcpStream;
 
 #[tokio::main]
 async fn main() -> iced::Result {
-    PostureApp::run(Settings::default())
+    Arrow::run(Settings::default())
 }
 
 struct PostureMetrics {
@@ -32,7 +32,7 @@ struct Point3D {
     visibility: f32,
 }
 
-struct PostureApp {
+struct Arrow {
     posture: String,
     raw_metrics: Option<PostureMetrics>,
     notification: Option<NotificationHandle>,
@@ -53,7 +53,7 @@ enum State {
     Connected(BufReader<TcpStream>),
 }
 
-impl PostureApp {
+impl Arrow {
     fn determine_posture(&self) -> String {
         if let Some(metrics) = &self.raw_metrics {
             // Check visibility
@@ -112,7 +112,7 @@ impl PostureApp {
     }
 }
 
-impl Application for PostureApp {
+impl Application for Arrow {
     type Executor = executor::Default;
     type Message = Message;
     type Theme = Theme; // Use Theme directly
@@ -132,7 +132,7 @@ impl Application for PostureApp {
             }
         };
         (
-            PostureApp {
+            Arrow {
                 posture: "Connecting...".into(), // Initial state message
                 raw_metrics: None,
                 notification: Some(Notification::new().show().unwrap()),
@@ -356,7 +356,7 @@ mod subscription {
     }
 }
 
-impl Drop for PostureApp {
+impl Drop for Arrow {
     fn drop(&mut self) {
         if let Some(handle) = self.notification.take() {
             handle.close();
