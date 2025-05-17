@@ -2,7 +2,7 @@ mod db_manager;
 
 use std::time::Duration;
 
-use db_manager::{DbManager, EventLog};
+use db_manager::{DbManager, PostureLog};
 use iced::{
     executor,
     widget::{column, svg, Container, Text},
@@ -37,7 +37,7 @@ struct PostureApp {
     raw_metrics: Option<PostureMetrics>,
     notification: Option<NotificationHandle>,
     db_manager: Option<DbManager>,
-    last_logs: Option<Vec<EventLog>>,
+    last_logs: Option<Vec<PostureLog>>,
 }
 
 #[derive(Debug, Clone)]
@@ -258,7 +258,7 @@ impl Application for PostureApp {
             let event_iter = events.clone().into_iter();
             let logs = event_iter
                 .map(|event| {
-                    Text::new(event.previous_posture.unwrap_or(String::from("UNKNOWN"))).size(10)
+                    Text::new(format!("{} for {:?}", event.posture, event.duration)).size(10)
                 })
                 .collect::<Vec<Text>>();
 
