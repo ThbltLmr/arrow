@@ -1,11 +1,11 @@
 mod db_manager;
 
-use std::{cmp::max, time::Duration};
+use std::{cmp::min, time::Duration};
 
 use db_manager::{DbManager, PostureLog};
 use iced::{
     executor,
-    widget::{column, svg, Container, Text},
+    widget::{column, row, svg, Container, Text},
     Alignment::Center,
     Application, Command, Element, Length, Settings, Subscription, Theme,
 };
@@ -250,20 +250,31 @@ impl Application for PostureApp {
 
         let svg_widget = svg(svg::Handle::from_path(svg_path)).height(100).width(100);
 
-        let mut content = column![svg_widget, Text::new(&self.posture).size(40)]
+        let content = column![svg_widget, Text::new(&self.posture).size(40)]
             .align_items(Center)
             .spacing(20);
 
         if let Some(events) = self.last_logs.clone() {
-            let event_iter = events.clone().into_iter();
-            let logs = event_iter
-                .map(|event| {
-                    Text::new(format!("{} for {:?}", event.posture, event.duration)).size(10)
-                })
-                .collect::<Vec<Text>>();
+            if !events.is_empty() {
+                let event_iter = events.clone().into_iter();
+                let logs = event_iter
+                    .map(|event| {
+                        Text::new(format!("{} for {:?}", event.posture, event.duration)).size(10)
+                    })
+                    .collect::<Vec<Text>>();
 
-            for i in 0..max(logs.len(), 5) {
-                content = content.push(logs[i].clone());
+                let mut log_column = column![logs[0].clone()].align_items(Center);
+
+                for i in 1..min(logs.len(), 5) {
+                    log_column = log_column.push(logs[i].clone());
+                }
+
+                return Container::new(row![content, log_column])
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .center_x()
+                    .center_y()
+                    .into();
             }
         }
 
