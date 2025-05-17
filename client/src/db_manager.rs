@@ -88,16 +88,26 @@ impl DbManager {
         Ok(())
     }
 
-    pub fn get_last_logs(
-        &self,
-        number: usize,
-    ) -> Result<Vec<PostureLog>, Box<dyn std::error::Error>> {
+    pub fn get_session_logs(&self) -> Result<Vec<PostureLog>, Box<dyn std::error::Error>> {
+        let mut start_stmt = self.conn.prepare(
+            "SELECT id
+                FROM posture_events
+                WHERE event_type = 'START'
+                ORDER BY timestamp DESC LIMIT 1",
+        )?;
+
+        let start_log_iter = start_stmt.query_map([], |row| Ok(row.get(0)?));
+
+        let start_log_id: usize = start_log_iter.unwrap().next().unwrap().unwrap();
+
         let mut stmt = self.conn.prepare(
             "SELECT timestamp, event_type, posture, previous_posture
                                             FROM posture_events
-                                            ORDER BY timestamp DESC LIMIT ?",
+                                            WHERE id > ?
+                                            ORDER BY timestamp DESC ",
         )?;
-        let log_iter = stmt.query_map([number + 1], |row| {
+
+        let log_iter = stmt.query_map([start_log_id], |row| {
             Ok(EventLog {
                 timestamp: row.get(0)?,
                 event_type: row.get(1)?,
@@ -114,6 +124,10 @@ impl DbManager {
         println!("{:?}", log_vec);
 
         let mut posture_logs = Vec::<PostureLog>::new();
+
+        if log_vec.len() == 0 {
+            return Ok(posture_logs);
+        }
 
         for i in 0..log_vec.len() - 1 {
             let curr_log = &log_vec[i];
