@@ -101,10 +101,12 @@ impl DbManager {
         let start_log_id: usize = start_log_iter.unwrap().next().unwrap().unwrap();
 
         let mut stmt = self.conn.prepare(
-            "SELECT timestamp, event_type, posture, previous_posture
-                                            FROM posture_events
-                                            WHERE id > ?
-                                            ORDER BY timestamp DESC ",
+            "SELECT e1.timestamp, e1.event_type, e1.posture, e1.previous_posture
+                FROM posture_events e1
+                JOIN posture_events e2 ON e1.id = e2.id + 1
+                WHERE e1.id > ?
+                AND ((julianday(e1.timestamp) - julianday(e2.timestamp)) * 86400.0) > 1
+                ORDER BY e1.timestamp DESC",
         )?;
 
         let log_iter = stmt.query_map([start_log_id], |row| {
