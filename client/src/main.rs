@@ -1,4 +1,5 @@
 mod db_manager;
+mod messages;
 
 use std::{cmp::min, time::Duration};
 
