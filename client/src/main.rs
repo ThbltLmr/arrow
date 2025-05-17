@@ -1,6 +1,6 @@
 mod db_manager;
 
-use std::time::Duration;
+use std::{cmp::max, time::Duration};
 
 use db_manager::{DbManager, PostureLog};
 use iced::{
@@ -262,8 +262,8 @@ impl Application for PostureApp {
                 })
                 .collect::<Vec<Text>>();
 
-            for log in logs {
-                content = content.push(log.clone());
+            for i in 0..max(logs.len(), 5) {
+                content = content.push(logs[i].clone());
             }
         }
 
