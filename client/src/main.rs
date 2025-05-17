@@ -10,6 +10,7 @@ use iced::{
     Alignment::Center,
     Application, Command, Element, Length, Settings, Subscription, Theme,
 };
+use messages::Posture;
 use notify_rust::{Notification, NotificationHandle};
 use tokio::io::BufReader;
 use tokio::net::TcpStream;
@@ -34,7 +35,8 @@ struct Point3D {
 }
 
 struct Arrow {
-    posture: String,
+    posture: Posture,
+    message: String,
     raw_metrics: Option<PostureMetrics>,
     notification: Option<NotificationHandle>,
     db_manager: Option<DbManager>,
@@ -55,7 +57,7 @@ enum State {
 }
 
 impl Arrow {
-    fn determine_posture(&self) -> String {
+    fn determine_posture(&self) -> Posture {
         if let Some(metrics) = &self.raw_metrics {
             // Check visibility
             let PostureMetrics {
@@ -66,11 +68,11 @@ impl Arrow {
             } = metrics;
 
             if left_shoulder.visibility < 0.9 || right_shoulder.visibility < 0.9 {
-                return "SHOULDERS_NOT_VISIBLE".to_string();
+                return Posture::ShouldersNotVisible;
             }
 
             if left_ear.visibility < 0.9 || right_ear.visibility < 0.9 {
-                return "HEAD_NOT_VISIBLE".to_string();
+                return Posture::HeadNotVisible;
             }
 
             // Calculate avg depths
@@ -79,37 +81,37 @@ impl Arrow {
 
             // Check slouching
             if avg_ear_depth + 0.2 < avg_shoulder_depth && avg_shoulder_depth > -0.33 {
-                return "SLOUCHING_BACK".to_string();
+                return Posture::SlouchingBack;
             }
             if avg_ear_depth + 0.33 < avg_shoulder_depth {
-                return "LEANING_IN".to_string();
+                return Posture::LeaningIn;
             }
 
             // Calculate ear slope for head tilt
             let ear_slope = (left_ear.y - right_ear.y) / (left_ear.x - right_ear.x);
             if ear_slope > 0.10 {
-                return "HEAD_TILT_RIGHT".to_string();
+                return Posture::HeadTiltRight;
             }
             if ear_slope < -0.10 {
-                return "HEAD_TILT_LEFT".to_string();
+                return Posture::HeadTiltLeft;
             }
 
             // Calculate shoulder slope for body tilt
             let shoulder_slope =
                 (left_shoulder.y - right_shoulder.y) / (left_shoulder.x - right_shoulder.x);
             if shoulder_slope > 0.10 {
-                return "BODY_TILT_RIGHT".to_string();
+                return Posture::BodyTiltRight;
             }
             if shoulder_slope < -0.10 {
-                return "BODY_TILT_LEFT".to_string();
+                return Posture::BodyTiltLeft;
             }
 
             // Default to STRAIGHT
-            return "STRAIGHT".to_string();
+            return Posture::Straight;
         }
 
         // If no metrics available
-        "UNKNOWN".to_string()
+        return Posture::Unknown;
     }
 }
 
@@ -134,7 +136,8 @@ impl Application for Arrow {
         };
         (
             Arrow {
-                posture: "Connecting...".into(), // Initial state message
+                posture: Posture::Unknown,
+                message: "Connecting...".into(),
                 raw_metrics: None,
                 notification: Some(Notification::new().show().unwrap()),
                 db_manager,
@@ -185,18 +188,22 @@ impl Application for Arrow {
                         },
                     };
 
-                    let previous_posture = self.posture.clone();
+                    let previous_posture = self.posture.get_posture_value().clone();
 
                     self.raw_metrics = Some(metrics);
                     self.posture = self.determine_posture();
+                    self.message = self.posture.get_posture_message();
 
-                    if self.posture != previous_posture {
+                    if self.posture.get_posture_value() != previous_posture {
                         if let Some(manager) = self.db_manager.take() {
-                            let _ = manager.log_posture_change(&self.posture, &previous_posture);
+                            let _ = manager.log_posture_change(
+                                &self.posture.get_posture_value(),
+                                &previous_posture,
+                            );
                             self.db_manager = Some(manager);
                         }
 
-                        if self.posture == "STRAIGHT" {
+                        if self.posture.get_posture_value() == "STRAIGHT" {
                             if let Some(mut handle) = self.notification.take() {
                                 handle
                                     .summary("Well done!")
@@ -211,7 +218,7 @@ impl Application for Arrow {
                                     .summary("Bad posture!")
                                     .body(&format!(
                                     "You should correct your posture. Current posture detected: {}",
-                                    self.posture
+                                    self.posture.get_posture_value()
                                 ))
                                     .timeout(0);
 
@@ -224,18 +231,18 @@ impl Application for Arrow {
             }
 
             Message::Connected(Ok(())) => {
-                self.posture = "Connected. Waiting for data...".into(); // Update UI on successful connection
+                self.message = "Connected. Waiting for data...".into(); // Update UI on successful connection
             }
 
             Message::Connected(Err(e)) => {
                 // Update UI on connection failure, include error message
-                self.posture = format!("Connection failed: {}. Retrying...", e);
+                self.message = format!("Connection failed: {}. Retrying...", e);
                 // The subscription logic itself handles the retry by staying in Disconnected state
             }
 
             Message::Disconnected => {
                 // Update UI when disconnected (e.g., server closed connection, read error)
-                self.posture = "Disconnected. Retrying...".into();
+                self.message = "Disconnected. Retrying...".into();
                 // The subscription logic handles the retry
             }
         }
@@ -244,14 +251,14 @@ impl Application for Arrow {
     }
 
     fn view(&self) -> Element<'_, Self::Message> {
-        let svg_path: &str = match self.posture.as_str() {
-            "STRAIGHT" => "./src/assets/good_posture.svg",
+        let svg_path: &str = match self.posture {
+            Posture::Straight => "./src/assets/good_posture.svg",
             _ => "./src/assets/bad_posture.svg",
         };
 
         let svg_widget = svg(svg::Handle::from_path(svg_path)).height(100).width(100);
 
-        let content = column![svg_widget, Text::new(&self.posture).size(40)]
+        let content = column![svg_widget, Text::new(&self.message).size(40)]
             .align_items(Center)
             .spacing(20);
 
@@ -363,7 +370,9 @@ impl Drop for Arrow {
             handle.close();
         }
         if let Some(manager) = self.db_manager.take() {
-            manager.log_session_end(&self.posture).unwrap();
+            manager
+                .log_session_end(&self.posture.get_posture_value())
+                .unwrap();
         }
     }
 }
