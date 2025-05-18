@@ -1,4 +1,5 @@
 use rusqlite::{Connection, Result as SqlResult};
+use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -88,7 +89,7 @@ impl DbManager {
         Ok(())
     }
 
-    pub fn get_session_logs(&self) -> Result<Vec<PostureLog>, Box<dyn std::error::Error>> {
+    pub fn get_session_logs(&self) -> Result<Option<Vec<PostureLog>>, Box<dyn std::error::Error>> {
         let mut start_stmt = self.conn.prepare(
             "SELECT id
                 FROM posture_events
@@ -100,52 +101,36 @@ impl DbManager {
 
         let start_log_id: usize = start_log_iter.unwrap().next().unwrap().unwrap();
 
+        self.get_logs(format!("e1.id > {}", start_log_id).as_str())
+    }
+
+    fn get_logs(&self, query: &str) -> Result<Option<Vec<PostureLog>>, Box<dyn Error>> {
         let mut stmt = self.conn.prepare(
-            "SELECT e1.timestamp, e1.event_type, e1.posture, e1.previous_posture
+            format!("SELECT e1.previous_posture, ((julianday(e1.timestamp) - julianday(e2.timestamp)) * 86400.0) as duration
                 FROM posture_events e1
                 JOIN posture_events e2 ON e1.id = e2.id + 1
-                WHERE e1.id > ?
-                AND ((julianday(e1.timestamp) - julianday(e2.timestamp)) * 86400.0) > 1
-                ORDER BY e1.timestamp DESC",
+                WHERE {}
+                AND ((julianday(e1.timestamp) - julianday(e2.timestamp)) * 86400.0) > 3
+                AND e1.event_type != 'START'
+                ORDER BY e1.timestamp DESC", query).as_str(),
         )?;
 
-        let log_iter = stmt.query_map([start_log_id], |row| {
-            Ok(EventLog {
-                timestamp: row.get(0)?,
-                event_type: row.get(1)?,
-                posture: row.get(2)?,
-                previous_posture: row.get(3)?,
+        let log_iter = stmt.query_map([], |row| {
+            Ok(PostureLog {
+                posture: row.get(0)?,
+                duration: Duration::from_secs_f64(row.get(1)?),
             })
         });
 
-        let log_vec: Vec<EventLog> = log_iter
-            .unwrap()
+        let log_vec = log_iter?
             .map(|res| res.unwrap())
-            .collect::<Vec<EventLog>>();
-
-        println!("{:?}", log_vec);
-
-        let mut posture_logs = Vec::<PostureLog>::new();
+            .collect::<Vec<PostureLog>>();
 
         if log_vec.len() == 0 {
-            return Ok(posture_logs);
+            Ok(None)
+        } else {
+            Ok(Some(log_vec))
         }
-
-        for i in 0..log_vec.len() - 1 {
-            let curr_log = &log_vec[i];
-            let prev_log = &log_vec[i + 1];
-
-            let current_timestamp = timestamp::Timestamp::from(curr_log.timestamp.as_str());
-            let prev_timestamp = timestamp::Timestamp::from(prev_log.timestamp.as_str());
-            let duration = timestamp::timestamp_difference(current_timestamp, prev_timestamp);
-
-            posture_logs.push(PostureLog {
-                posture: prev_log.posture.clone(),
-                duration,
-            });
-        }
-
-        Ok(posture_logs)
     }
 
     fn get_app_data_dir() -> PathBuf {

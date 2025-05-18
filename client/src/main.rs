@@ -156,7 +156,7 @@ impl Application for Arrow {
             Message::PostureUpdate(metrics_str) => {
                 // Parse the raw metrics
                 if let Some(manager) = self.db_manager.take() {
-                    self.last_logs = Some(manager.get_session_logs().unwrap());
+                    self.last_logs = manager.get_session_logs().unwrap();
                     self.db_manager = Some(manager);
                 }
                 let parts: Vec<&str> = metrics_str.split('|').collect();
@@ -372,7 +372,7 @@ impl Drop for Arrow {
             handle.close();
         }
         if let Some(manager) = self.db_manager.take() {
-            manager
-                .log_session_end(&self.posture.get_posture_value())
+            manager.log_session_end(&self.posture.get_posture_value());
+        }
     }
 }
