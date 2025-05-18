@@ -1,5 +1,5 @@
 mod db_manager;
-mod messages;
+mod postures;
 
 use std::{cmp::min, time::Duration};
 
@@ -10,8 +10,8 @@ use iced::{
     Alignment::Center,
     Application, Command, Element, Length, Settings, Subscription, Theme,
 };
-use messages::Posture;
 use notify_rust::{Notification, NotificationHandle};
+use postures::Posture;
 use tokio::io::BufReader;
 use tokio::net::TcpStream;
 

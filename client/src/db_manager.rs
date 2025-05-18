@@ -9,6 +9,7 @@ pub struct PostureLog {
     pub posture: String,
     pub duration: Duration,
 }
+
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct EventLog {
