@@ -118,7 +118,7 @@ impl Arrow {
 impl Application for Arrow {
     type Executor = executor::Default;
     type Message = Message;
-    type Theme = Theme; // Use Theme directly
+    type Theme = Theme;
     type Flags = ();
 
     fn new(_flags: ()) -> (Self, Command<Self::Message>) {
@@ -148,7 +148,7 @@ impl Application for Arrow {
     }
 
     fn title(&self) -> String {
-        "Posture Monitor".into()
+        "Arrow".into()
     }
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
@@ -305,7 +305,6 @@ impl Application for Arrow {
     }
 }
 
-// Separate module encapsulating the subscription logic
 mod subscription {
     use super::{BufReader, Message, State, TcpStream};
     use iced::subscription::{self, Subscription};
@@ -318,8 +317,6 @@ mod subscription {
             match state {
                 // If currently disconnected, attempt to connect
                 State::Disconnected => {
-                    // Optional: Introduce a delay before retrying connection
-                    // sleep(Duration::from_secs(5)).await;
                     match TcpStream::connect("127.0.0.1:9876").await {
                         Ok(stream) => {
                             let reader = BufReader::new(stream);
@@ -377,7 +374,5 @@ impl Drop for Arrow {
         if let Some(manager) = self.db_manager.take() {
             manager
                 .log_session_end(&self.posture.get_posture_value())
-                .unwrap();
-        }
     }
 }
