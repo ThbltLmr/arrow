@@ -70,8 +70,8 @@ impl DbManager {
         self.conn.execute(
             "INSERT INTO posture_events 
              (timestamp, event_type, posture, previous_posture)
-             VALUES (datetime('now'), 'STOP', ?, NULL)",
-            [last_posture],
+             VALUES (datetime('now'), 'STOP', ?, ?)",
+            [last_posture, last_posture],
         )?;
 
         Ok(())
