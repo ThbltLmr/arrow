@@ -102,18 +102,24 @@ impl DbManager {
 
         let start_log_id: usize = start_log_iter.unwrap().next().unwrap().unwrap();
 
-        self.get_logs(format!("e1.id > {}", start_log_id).as_str())
+        self.get_logs(format!("logs.id > {}", start_log_id).as_str())
     }
 
+    /*
+    Generic function to select logs from the database
+    @params:
+    query: &str -> will be included in the WHERE clause of the SQL query
+    example: get_logs("logs.id = 1".as_str())
+    */
     fn get_logs(&self, query: &str) -> Result<Option<Vec<PostureLog>>, Box<dyn Error>> {
         let mut stmt = self.conn.prepare(
-            format!("SELECT e1.previous_posture, ((julianday(e1.timestamp) - julianday(e2.timestamp)) * 86400.0) as duration
-                FROM posture_events e1
-                JOIN posture_events e2 ON e1.id = e2.id + 1
+            format!("SELECT logs.previous_posture, ((julianday(logs.timestamp) - julianday(e2.timestamp)) * 86400.0) as duration
+                FROM posture_events logs
+                JOIN posture_events e2 ON logs.id = e2.id + 1
                 WHERE {}
-                AND ((julianday(e1.timestamp) - julianday(e2.timestamp)) * 86400.0) > 3
-                AND e1.event_type != 'START'
-                ORDER BY e1.timestamp DESC", query).as_str(),
+                AND ((julianday(logs.timestamp) - julianday(e2.timestamp)) * 86400.0) > 3
+                AND logs.event_type != 'START'
+                ORDER BY logs.timestamp DESC", query).as_str(),
         )?;
 
         let log_iter = stmt.query_map([], |row| {
