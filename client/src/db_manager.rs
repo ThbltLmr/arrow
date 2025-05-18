@@ -9,7 +9,7 @@ pub struct PostureLog {
     pub posture: String,
     pub duration: Duration,
 }
-
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct EventLog {
     pub timestamp: String,
@@ -140,6 +140,7 @@ impl DbManager {
     }
 }
 
+#[allow(dead_code)]
 mod timestamp {
     use std::time::Duration;
 

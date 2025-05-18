@@ -372,7 +372,7 @@ impl Drop for Arrow {
             handle.close();
         }
         if let Some(manager) = self.db_manager.take() {
-            manager.log_session_end(&self.posture.get_posture_value());
+            let _ = manager.log_session_end(&self.posture.get_posture_value());
         }
     }
 }
