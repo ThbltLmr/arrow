@@ -57,6 +57,25 @@ enum State {
 }
 
 impl Arrow {
+    fn current_posture_container(&self) -> iced::widget::Container<'_, Message> {
+        let svg_path: &str = match self.posture {
+            Posture::Straight => "./src/assets/good_posture.svg",
+            _ => "./src/assets/bad_posture.svg",
+        };
+
+        let svg_widget = svg(svg::Handle::from_path(svg_path)).height(100).width(100);
+
+        let content = column![svg_widget, Text::new(&self.message).size(40)]
+            .align_items(Center)
+            .spacing(20);
+
+        return Container::new(content)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .center_x()
+            .center_y();
+    }
+
     fn determine_posture(&self) -> Posture {
         if let Some(metrics) = &self.raw_metrics {
             // Check visibility
@@ -251,16 +270,8 @@ impl Application for Arrow {
     }
 
     fn view(&self) -> Element<'_, Self::Message> {
-        let svg_path: &str = match self.posture {
-            Posture::Straight => "./src/assets/good_posture.svg",
-            _ => "./src/assets/bad_posture.svg",
-        };
-
-        let svg_widget = svg(svg::Handle::from_path(svg_path)).height(100).width(100);
-
-        let content = column![svg_widget, Text::new(&self.message).size(40)]
-            .align_items(Center)
-            .spacing(20);
+        let mut log_column = column![Text::new("Session history").size(20)].align_items(Center);
+        let content = self.current_posture_container();
 
         if let Some(events) = self.last_logs.clone() {
             if !events.is_empty() {
@@ -276,22 +287,13 @@ impl Application for Arrow {
                     })
                     .collect::<Vec<Text>>();
 
-                let mut log_column = column![logs[0].clone()].align_items(Center);
-
-                for i in 1..min(logs.len(), 5) {
+                for i in 0..min(logs.len(), 5) {
                     log_column = log_column.push(logs[i].clone());
                 }
-
-                return Container::new(row![content, log_column])
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .center_x()
-                    .center_y()
-                    .into();
             }
         }
 
-        return Container::new(content)
+        return Container::new(row![content, log_column])
             .width(Length::Fill)
             .height(Length::Fill)
             .center_x()
