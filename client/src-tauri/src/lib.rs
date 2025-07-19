@@ -1,12 +1,14 @@
 mod db_manager;
 mod postures;
+mod python_server;
 mod tcp_service;
 
 use std::sync::Mutex;
 use db_manager::{DbManager, PostureLog};
 use postures::Posture;
+use python_server::{PythonServer, PythonServerState};
 use serde::{Deserialize, Serialize};
-use tauri::{Emitter, State};
+use tauri::{Emitter, Manager, State};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PostureMetrics {
@@ -77,6 +79,28 @@ fn log_session_end(state: State<AppState>) -> Result<(), String> {
         Some(manager) => manager.log_session_end(&posture_value).map_err(|e| e.to_string()),
         None => Err("Database not initialized".to_string()),
     }
+}
+
+#[tauri::command]
+fn start_python_server(
+    python_server: State<PythonServerState>,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    let mut server = python_server.lock().unwrap();
+    server.start(&app_handle)
+}
+
+#[tauri::command]
+fn stop_python_server(python_server: State<PythonServerState>) -> Result<(), String> {
+    let mut server = python_server.lock().unwrap();
+    server.stop();
+    Ok(())
+}
+
+#[tauri::command]
+fn is_python_server_running(python_server: State<PythonServerState>) -> bool {
+    let mut server = python_server.lock().unwrap();
+    server.is_running()
 }
 
 fn determine_posture(metrics: &PostureMetrics) -> Posture {
@@ -238,17 +262,34 @@ pub fn run() {
         current_posture: Mutex::new(Posture::Unknown),
     };
 
+    let python_server_state = PythonServerState::new(PythonServer::new());
+
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
         .manage(app_state)
+        .manage(python_server_state)
         .invoke_handler(tauri::generate_handler![
             get_session_logs,
             get_current_posture,
             log_session_start,
-            log_session_end
+            log_session_end,
+            start_python_server,
+            stop_python_server,
+            is_python_server_running
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
+            
+            // Auto-start Python server
+            if let Some(python_server_state) = app.try_state::<PythonServerState>() {
+                let mut server = python_server_state.lock().unwrap();
+                if let Err(e) = server.start(&app_handle) {
+                    eprintln!("Failed to auto-start Python server: {}", e);
+                    // Continue anyway - user can manually start it
+                }
+            }
+            
+            // Start TCP service
             tauri::async_runtime::spawn(async move {
                 tcp_service::start_tcp_service(app_handle).await;
             });
