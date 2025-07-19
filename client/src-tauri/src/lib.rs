@@ -6,7 +6,7 @@ use std::sync::Mutex;
 use db_manager::{DbManager, PostureLog};
 use postures::Posture;
 use serde::{Deserialize, Serialize};
-use tauri::{Manager, State};
+use tauri::{Emitter, State};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PostureMetrics {
@@ -164,7 +164,7 @@ pub fn process_posture_metrics(
     let new_posture = determine_posture(&metrics);
     let previous_posture = {
         let mut current_posture = state.current_posture.lock().unwrap();
-        let previous = current_posture.clone();
+        let previous = (*current_posture).clone();
         *current_posture = new_posture.clone();
         previous
     };
