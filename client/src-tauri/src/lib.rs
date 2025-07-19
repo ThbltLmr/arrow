@@ -57,6 +57,28 @@ fn get_current_posture(state: State<AppState>) -> String {
     posture.get_posture_message()
 }
 
+#[tauri::command]
+fn log_session_start(state: State<AppState>) -> Result<(), String> {
+    let db_manager = state.db_manager.lock().unwrap();
+    match db_manager.as_ref() {
+        Some(manager) => manager.log_session_start().map_err(|e| e.to_string()),
+        None => Err("Database not initialized".to_string()),
+    }
+}
+
+#[tauri::command]
+fn log_session_end(state: State<AppState>) -> Result<(), String> {
+    let posture = state.current_posture.lock().unwrap();
+    let posture_value = posture.get_posture_value();
+    drop(posture);
+    
+    let db_manager = state.db_manager.lock().unwrap();
+    match db_manager.as_ref() {
+        Some(manager) => manager.log_session_end(&posture_value).map_err(|e| e.to_string()),
+        None => Err("Database not initialized".to_string()),
+    }
+}
+
 fn determine_posture(metrics: &PostureMetrics) -> Posture {
     let PostureMetrics {
         left_ear,
@@ -192,7 +214,9 @@ pub fn run() {
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
             get_session_logs,
-            get_current_posture
+            get_current_posture,
+            log_session_start,
+            log_session_end
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
