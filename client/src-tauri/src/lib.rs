@@ -184,9 +184,38 @@ pub fn process_posture_metrics(
         };
 
         let _ = app_handle.emit("posture-changed", &update);
+        
+        // Send notifications
+        show_posture_notification(&app_handle, &new_posture);
     }
 
     Ok(())
+}
+
+fn show_posture_notification(app_handle: &tauri::AppHandle, posture: &Posture) {
+    use tauri_plugin_notification::NotificationExt;
+    
+    match posture {
+        Posture::Straight => {
+            let _ = app_handle
+                .notification()
+                .builder()
+                .title("Well done!")
+                .body("Back to sitting straight, good job!")
+                .show();
+        }
+        _ => {
+            let _ = app_handle
+                .notification()
+                .builder()
+                .title("Bad posture!")
+                .body(&format!(
+                    "You should correct your posture. Current posture detected: {}",
+                    posture.get_posture_value()
+                ))
+                .show();
+        }
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
