@@ -1,5 +1,6 @@
 mod db_manager;
 mod postures;
+mod tcp_service;
 
 use std::sync::Mutex;
 use db_manager::{DbManager, PostureLog};
@@ -101,8 +102,7 @@ fn determine_posture(metrics: &PostureMetrics) -> Posture {
     Posture::Straight
 }
 
-#[tauri::command]
-fn process_posture_metrics(
+pub fn process_posture_metrics(
     metrics_str: String,
     state: State<AppState>,
     app_handle: tauri::AppHandle,
@@ -192,9 +192,15 @@ pub fn run() {
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
             get_session_logs,
-            get_current_posture,
-            process_posture_metrics
+            get_current_posture
         ])
+        .setup(|app| {
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                tcp_service::start_tcp_service(app_handle).await;
+            });
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
