@@ -4,7 +4,8 @@
       "Bash(npm create tauri-app:*)",
       "Bash(cargo create-tauri-app:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(cp:*)"
     ],
     "deny": []
   }
