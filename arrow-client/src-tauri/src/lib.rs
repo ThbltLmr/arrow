@@ -4,6 +4,9 @@ mod notification_service;
 mod postures;
 mod tcp_client;
 
+#[cfg(test)]
+mod tests;
+
 use db_manager::{DbManager, PostureLog};
 use events::ConnectionStatus;
 use postures::Posture;

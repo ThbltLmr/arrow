@@ -23,52 +23,90 @@ function App() {
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
+    let isCleanedUp = false;
+
     const initializeApp = async () => {
       try {
         // Initialize the backend
         await invoke("initialize_app");
-        setIsInitialized(true);
+        if (!isCleanedUp) {
+          setIsInitialized(true);
+        }
       } catch (error) {
         console.error("Failed to initialize app:", error);
-        setConnectionStatus({
-          connected: false,
-          message: `Initialization failed: ${error}`
-        });
+        if (!isCleanedUp) {
+          setConnectionStatus({
+            connected: false,
+            message: `Initialization failed: ${error}`
+          });
+        }
       }
     };
 
     const setupEventListeners = async () => {
-      // Listen for posture updates
-      const postureUnlisten = await listen<PostureUpdate>("posture-update", (event) => {
-        setPostureUpdate(event.payload);
-      });
+      try {
+        // Listen for posture updates
+        const postureUnlisten = await listen<PostureUpdate>("posture-update", (event) => {
+          if (!isCleanedUp) {
+            setPostureUpdate(event.payload);
+          }
+        });
 
-      // Listen for connection status changes
-      const connectionUnlisten = await listen<ConnectionStatus>("connection-status", (event) => {
-        setConnectionStatus(event.payload);
-      });
+        // Listen for connection status changes
+        const connectionUnlisten = await listen<ConnectionStatus>("connection-status", (event) => {
+          if (!isCleanedUp) {
+            setConnectionStatus(event.payload);
+          }
+        });
 
-      // Listen for session logs updates
-      const logsUnlisten = await listen<SessionLogsUpdate>("session-logs-updated", (event) => {
-        setSessionLogs(event.payload.logs);
-      });
+        // Listen for session logs updates
+        const logsUnlisten = await listen<SessionLogsUpdate>("session-logs-updated", (event) => {
+          if (!isCleanedUp) {
+            setSessionLogs(event.payload.logs);
+          }
+        });
 
-      // Listen for notification events (for frontend feedback)
-      const notificationUnlisten = await listen<NotificationEvent>("notification-triggered", (event) => {
-        console.log("Notification triggered:", event.payload);
-      });
+        // Listen for notification events (for frontend feedback)
+        const notificationUnlisten = await listen<NotificationEvent>("notification-triggered", (event) => {
+          if (!isCleanedUp) {
+            console.log("Notification triggered:", event.payload);
+          }
+        });
 
-      // Cleanup function
-      return () => {
-        postureUnlisten();
-        connectionUnlisten();
-        logsUnlisten();
-        notificationUnlisten();
-      };
+        // Return cleanup function
+        return () => {
+          postureUnlisten();
+          connectionUnlisten();
+          logsUnlisten();
+          notificationUnlisten();
+        };
+      } catch (error) {
+        console.error("Failed to setup event listeners:", error);
+        return () => {}; // No-op cleanup
+      }
     };
 
-    initializeApp();
-    setupEventListeners();
+    // Initialize app and setup listeners
+    const init = async () => {
+      await initializeApp();
+      const cleanup = await setupEventListeners();
+      return cleanup;
+    };
+
+    let cleanup: (() => void) | undefined;
+    init().then((cleanupFn) => {
+      cleanup = cleanupFn;
+    });
+
+    // Cleanup on unmount
+    return () => {
+      isCleanedUp = true;
+      if (cleanup) {
+        cleanup();
+      }
+      // Call cleanup on the backend
+      invoke("cleanup_app").catch(console.error);
+    };
   }, []);
 
   const fetchSessionLogs = async () => {
