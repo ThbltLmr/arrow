@@ -1,12 +1,15 @@
 mod db_manager;
+mod events;
+mod notification_service;
 mod postures;
 mod tcp_client;
 
 use db_manager::{DbManager, PostureLog};
+use events::ConnectionStatus;
 use postures::Posture;
 use std::sync::Arc;
 use tauri::{AppHandle, State};
-use tcp_client::{ConnectionStatus, PostureUpdate, TcpClient};
+use tcp_client::TcpClient;
 use tokio::sync::Mutex;
 
 pub struct AppState {
@@ -21,6 +24,13 @@ impl AppState {
             db_manager: Arc::new(Mutex::new(None)),
             tcp_client: Arc::new(Mutex::new(None)),
             current_posture: Arc::new(Mutex::new(Posture::Unknown)),
+        }
+    }
+
+    pub async fn cleanup(&self, current_posture: &str) {
+        // Log session end
+        if let Some(db_manager) = self.db_manager.lock().await.as_ref() {
+            let _ = db_manager.log_session_end(current_posture);
         }
     }
 }
@@ -46,7 +56,13 @@ async fn initialize_app(app_handle: AppHandle, state: State<'_, AppState>) -> Re
     }
 
     // Initialize TCP client
-    let tcp_client = TcpClient::new(app_handle.clone());
+    let tcp_client = TcpClient::new(app_handle.clone(), state.db_manager.clone());
+    
+    // Initialize notifications
+    if let Err(e) = tcp_client.initialize_notifications().await {
+        eprintln!("Failed to initialize notifications: {}", e);
+    }
+    
     tcp_client.start().await;
 
     {
@@ -108,6 +124,17 @@ async fn log_posture_change(
     }
 }
 
+#[tauri::command]
+async fn cleanup_app(state: State<'_, AppState>) -> Result<(), String> {
+    let current_posture = {
+        let posture_guard = state.current_posture.lock().await;
+        posture_guard.get_posture_value()
+    };
+    
+    state.cleanup(&current_posture).await;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app_state = AppState::new();
@@ -120,7 +147,8 @@ pub fn run() {
             initialize_app,
             get_session_logs,
             get_connection_status,
-            log_posture_change
+            log_posture_change,
+            cleanup_app
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

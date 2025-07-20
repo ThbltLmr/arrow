@@ -1,5 +1,7 @@
+use crate::db_manager::DbManager;
+use crate::events::{ConnectionStatus, NotificationEvent, PostureMetrics, PostureUpdate, SessionLogsUpdate};
+use crate::notification_service::NotificationService;
 use crate::postures::Posture;
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -7,51 +9,35 @@ use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PostureMetrics {
-    pub left_ear: Point3D,
-    pub right_ear: Point3D,
-    pub left_shoulder: Point3D,
-    pub right_shoulder: Point3D,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Point3D {
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
-    pub visibility: f32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PostureUpdate {
-    pub posture: Posture,
-    pub message: String,
-    pub metrics: Option<PostureMetrics>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ConnectionStatus {
-    pub connected: bool,
-    pub message: String,
-}
-
 pub struct TcpClient {
     app_handle: AppHandle,
     connection_status: Arc<Mutex<bool>>,
+    db_manager: Arc<Mutex<Option<DbManager>>>,
+    notification_service: Arc<NotificationService>,
+    current_posture: Arc<Mutex<Posture>>,
 }
 
 impl TcpClient {
-    pub fn new(app_handle: AppHandle) -> Self {
+    pub fn new(app_handle: AppHandle, db_manager: Arc<Mutex<Option<DbManager>>>) -> Self {
         Self {
             app_handle,
             connection_status: Arc::new(Mutex::new(false)),
+            db_manager,
+            notification_service: Arc::new(NotificationService::new()),
+            current_posture: Arc::new(Mutex::new(Posture::Unknown)),
         }
+    }
+
+    pub async fn initialize_notifications(&self) -> Result<(), String> {
+        self.notification_service.initialize().await
     }
 
     pub async fn start(&self) {
         let app_handle = self.app_handle.clone();
         let connection_status = self.connection_status.clone();
+        let db_manager = self.db_manager.clone();
+        let notification_service = self.notification_service.clone();
+        let current_posture = self.current_posture.clone();
 
         tokio::spawn(async move {
             loop {
@@ -70,7 +56,15 @@ impl TcpClient {
                             },
                         );
 
-                        if let Err(e) = Self::handle_connection(stream, &app_handle).await {
+                        if let Err(e) = Self::handle_connection(
+                            stream,
+                            &app_handle,
+                            &db_manager,
+                            &notification_service,
+                            &current_posture,
+                        )
+                        .await
+                        {
                             eprintln!("Connection error: {}", e);
                         }
 
@@ -107,6 +101,9 @@ impl TcpClient {
     async fn handle_connection(
         stream: TcpStream,
         app_handle: &AppHandle,
+        db_manager: &Arc<Mutex<Option<DbManager>>>,
+        notification_service: &Arc<NotificationService>,
+        current_posture: &Arc<Mutex<Posture>>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut reader = BufReader::new(stream);
         let mut line = String::new();
@@ -128,6 +125,52 @@ impl TcpClient {
                     }
 
                     if let Some(posture_update) = Self::parse_metrics(&line) {
+                        // Check for posture change and handle logging/notifications
+                        let previous_posture = {
+                            let mut current = current_posture.lock().await;
+                            let previous = current.clone();
+                            *current = posture_update.posture.clone();
+                            previous
+                        };
+
+                        let posture_changed = posture_update.posture.get_posture_value()
+                            != previous_posture.get_posture_value();
+
+                        if posture_changed {
+                            // Log posture change to database
+                            if let Some(db) = db_manager.lock().await.as_ref() {
+                                let _ = db.log_posture_change(
+                                    &posture_update.posture.get_posture_value(),
+                                    &previous_posture.get_posture_value(),
+                                );
+                            }
+
+                            // Send notification
+                            let is_good_posture =
+                                posture_update.posture.get_posture_value() == "STRAIGHT";
+                            notification_service
+                                .notify_posture_change(&posture_update.posture, is_good_posture)
+                                .await;
+
+                            // Emit session logs update event
+                            if let Some(db) = db_manager.lock().await.as_ref() {
+                                if let Ok(Some(logs)) = db.get_session_logs() {
+                                    let _ = app_handle.emit("session-logs-updated", SessionLogsUpdate { logs });
+                                }
+                            }
+
+                            // Emit notification event
+                            let _ = app_handle.emit(
+                                "notification-triggered",
+                                NotificationEvent {
+                                    posture: posture_update.posture.get_posture_value(),
+                                    message: posture_update.posture.get_posture_message(),
+                                    is_good_posture,
+                                },
+                            );
+                        }
+
+                        // Always emit posture update
                         let _ = app_handle.emit("posture-update", posture_update);
                     }
                 }
@@ -144,25 +187,25 @@ impl TcpClient {
         let parts: Vec<&str> = metrics_str.split('|').collect();
         if parts.len() == 16 {
             let metrics = PostureMetrics {
-                left_ear: Point3D {
+                left_ear: crate::events::Point3D {
                     x: parts[0].parse::<f32>().unwrap_or(0.0),
                     y: parts[1].parse::<f32>().unwrap_or(0.0),
                     z: parts[2].parse::<f32>().unwrap_or(0.0),
                     visibility: parts[3].parse::<f32>().unwrap_or(0.0),
                 },
-                right_ear: Point3D {
+                right_ear: crate::events::Point3D {
                     x: parts[4].parse::<f32>().unwrap_or(0.0),
                     y: parts[5].parse::<f32>().unwrap_or(0.0),
                     z: parts[6].parse::<f32>().unwrap_or(0.0),
                     visibility: parts[7].parse::<f32>().unwrap_or(0.0),
                 },
-                left_shoulder: Point3D {
+                left_shoulder: crate::events::Point3D {
                     x: parts[8].parse::<f32>().unwrap_or(0.0),
                     y: parts[9].parse::<f32>().unwrap_or(0.0),
                     z: parts[10].parse::<f32>().unwrap_or(0.0),
                     visibility: parts[11].parse::<f32>().unwrap_or(0.0),
                 },
-                right_shoulder: Point3D {
+                right_shoulder: crate::events::Point3D {
                     x: parts[12].parse::<f32>().unwrap_or(0.0),
                     y: parts[13].parse::<f32>().unwrap_or(0.0),
                     z: parts[14].parse::<f32>().unwrap_or(0.0),
