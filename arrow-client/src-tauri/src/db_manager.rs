@@ -200,3 +200,4 @@ mod timestamp {
         Duration::from_secs(latest.to_seconds() - earliest.to_seconds())
     }
 }
+

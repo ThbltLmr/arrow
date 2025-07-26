@@ -49,7 +49,6 @@ async fn initialize_app(
         .spawn();
     println!("Started Python server on port 9876");
 
-    // Initialize database
     let db_manager = match DbManager::new() {
         Ok(manager) => {
             if let Err(e) = manager.log_session_start() {
@@ -67,10 +66,8 @@ async fn initialize_app(
         *db_lock = Some(db_manager);
     }
 
-    // Initialize TCP client
     let tcp_client = TcpClient::new(app_handle.clone(), state.db_manager.clone());
 
-    // Initialize notifications
     if let Err(e) = tcp_client.initialize_notifications().await {
         eprintln!("Failed to initialize notifications: {}", e);
     }
