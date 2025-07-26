@@ -10,7 +10,7 @@ mod tests;
 use db_manager::{DbManager, PostureLog};
 use events::ConnectionStatus;
 use postures::Posture;
-use std::sync::Arc;
+use std::{net::TcpListener, process::Command, sync::Arc};
 use tauri::{AppHandle, State};
 use tcp_client::TcpClient;
 use tokio::sync::Mutex;
@@ -39,7 +39,16 @@ impl AppState {
 }
 
 #[tauri::command]
-async fn initialize_app(app_handle: AppHandle, state: State<'_, AppState>) -> Result<String, String> {
+async fn initialize_app(
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    println!("Starting Python server on port 9876");
+    let _python_server = Command::new("python")
+        .arg("/home/Thibault/dev/arrow/server/main.py")
+        .spawn();
+    println!("Started Python server on port 9876");
+
     // Initialize database
     let db_manager = match DbManager::new() {
         Ok(manager) => {
@@ -60,12 +69,12 @@ async fn initialize_app(app_handle: AppHandle, state: State<'_, AppState>) -> Re
 
     // Initialize TCP client
     let tcp_client = TcpClient::new(app_handle.clone(), state.db_manager.clone());
-    
+
     // Initialize notifications
     if let Err(e) = tcp_client.initialize_notifications().await {
         eprintln!("Failed to initialize notifications: {}", e);
     }
-    
+
     tcp_client.start().await;
 
     {
@@ -133,7 +142,7 @@ async fn cleanup_app(state: State<'_, AppState>) -> Result<(), String> {
         let posture_guard = state.current_posture.lock().await;
         posture_guard.get_posture_value()
     };
-    
+
     state.cleanup(&current_posture).await;
     Ok(())
 }
