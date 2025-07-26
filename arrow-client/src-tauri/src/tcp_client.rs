@@ -1,5 +1,7 @@
 use crate::db_manager::DbManager;
-use crate::events::{ConnectionStatus, NotificationEvent, PostureMetrics, PostureUpdate, SessionLogsUpdate};
+use crate::events::{
+    ConnectionStatus, NotificationEvent, PostureMetrics, PostureUpdate, SessionLogsUpdate,
+};
 use crate::notification_service::NotificationService;
 use crate::postures::Posture;
 use std::sync::Arc;
@@ -155,7 +157,8 @@ impl TcpClient {
                             // Emit session logs update event
                             if let Some(db) = db_manager.lock().await.as_ref() {
                                 if let Ok(Some(logs)) = db.get_session_logs() {
-                                    let _ = app_handle.emit("session-logs-updated", SessionLogsUpdate { logs });
+                                    let _ = app_handle
+                                        .emit("session-logs-updated", SessionLogsUpdate { logs });
                                 }
                             }
 
@@ -265,7 +268,8 @@ impl TcpClient {
         }
 
         // Calculate shoulder slope for body tilt
-        let shoulder_slope = (left_shoulder.y - right_shoulder.y) / (left_shoulder.x - right_shoulder.x);
+        let shoulder_slope =
+            (left_shoulder.y - right_shoulder.y) / (left_shoulder.x - right_shoulder.x);
         if shoulder_slope > 0.10 {
             return Posture::BodyTiltRight;
         }
@@ -281,3 +285,4 @@ impl TcpClient {
         *self.connection_status.lock().await
     }
 }
+
