@@ -11,6 +11,19 @@ pub struct PostureLog {
     pub duration: Duration,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DayStats {
+    pub date: String,
+    pub total_time: Duration,
+    pub good_posture_time: Duration,
+    pub bad_posture_time: Duration,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WeeklyStats {
+    pub days: Vec<DayStats>,
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct EventLog {
@@ -141,6 +154,71 @@ impl DbManager {
         }
     }
 
+    pub fn get_weekly_stats(&self) -> Result<WeeklyStats, Box<dyn std::error::Error>> {
+        let mut days = Vec::new();
+        
+        // Get the last 7 days
+        for i in 0..7 {
+            let date_offset = format!("date('now', '-{} days')", i);
+            let date_start = format!("datetime(date('now', '-{} days'))", i);
+            let date_end = format!("datetime(date('now', '-{} days'), '+1 day')", i);
+            
+            // Get the date string for this day
+            let mut date_stmt = self.conn.prepare(&format!(
+                "SELECT date('now', '-{} days')", i
+            ))?;
+            let date: String = date_stmt.query_row([], |row| row.get(0))?;
+            
+            // Calculate total session time and posture breakdowns for this day
+            let mut stats_stmt = self.conn.prepare(&format!(
+                "SELECT 
+                    logs.posture,
+                    SUM((julianday(logs.timestamp) - julianday(e2.timestamp)) * 86400.0) as total_duration
+                FROM posture_events logs
+                JOIN posture_events e2 ON logs.id = e2.id + 1
+                WHERE logs.timestamp >= {} AND logs.timestamp < {}
+                AND ((julianday(logs.timestamp) - julianday(e2.timestamp)) * 86400.0) > 3
+                AND logs.event_type != 'START'
+                GROUP BY logs.posture
+                ORDER BY logs.posture", date_start, date_end
+            ))?;
+            
+            let posture_durations = stats_stmt.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, f64>(1)?
+                ))
+            })?;
+            
+            let mut total_time = 0.0;
+            let mut good_posture_time = 0.0;
+            let mut bad_posture_time = 0.0;
+            
+            for result in posture_durations {
+                let (posture, duration) = result?;
+                total_time += duration;
+                
+                if posture == "STRAIGHT" {
+                    good_posture_time += duration;
+                } else {
+                    bad_posture_time += duration;
+                }
+            }
+            
+            days.push(DayStats {
+                date,
+                total_time: Duration::from_secs_f64(total_time),
+                good_posture_time: Duration::from_secs_f64(good_posture_time),
+                bad_posture_time: Duration::from_secs_f64(bad_posture_time),
+            });
+        }
+        
+        // Reverse to get chronological order (oldest to newest)
+        days.reverse();
+        
+        Ok(WeeklyStats { days })
+    }
+
     fn get_app_data_dir() -> PathBuf {
         let mut app_dir = dirs::data_local_dir().unwrap_or_else(|| PathBuf::from("."));
         app_dir.push("PostureMonitor");
@@ -200,4 +278,3 @@ mod timestamp {
         Duration::from_secs(latest.to_seconds() - earliest.to_seconds())
     }
 }
-

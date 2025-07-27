@@ -7,7 +7,7 @@ mod tcp_client;
 #[cfg(test)]
 mod tests;
 
-use db_manager::{DbManager, PostureLog};
+use db_manager::{DbManager, PostureLog, WeeklyStats};
 use events::ConnectionStatus;
 use postures::Posture;
 use std::{net::TcpListener, process::Command, sync::Arc};
@@ -134,6 +134,19 @@ async fn log_posture_change(
 }
 
 #[tauri::command]
+async fn get_weekly_stats(state: State<'_, AppState>) -> Result<WeeklyStats, String> {
+    let db_lock = state.db_manager.lock().await;
+    if let Some(db_manager) = db_lock.as_ref() {
+        match db_manager.get_weekly_stats() {
+            Ok(stats) => Ok(stats),
+            Err(e) => Err(format!("Failed to get weekly stats: {}", e)),
+        }
+    } else {
+        Err("Database not initialized".to_string())
+    }
+}
+
+#[tauri::command]
 async fn cleanup_app(state: State<'_, AppState>) -> Result<(), String> {
     let current_posture = {
         let posture_guard = state.current_posture.lock().await;
@@ -157,6 +170,7 @@ pub fn run() {
             get_session_logs,
             get_connection_status,
             log_posture_change,
+            get_weekly_stats,
             cleanup_app
         ])
         .run(tauri::generate_context!())
