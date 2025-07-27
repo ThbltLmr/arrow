@@ -58,3 +58,23 @@ export interface NotificationEvent {
   message: string;
   is_good_posture: boolean;
 }
+
+export interface DayStats {
+  date: string;
+  total_time: {
+    secs: number;
+    nanos: number;
+  };
+  good_posture_time: {
+    secs: number;
+    nanos: number;
+  };
+  bad_posture_time: {
+    secs: number;
+    nanos: number;
+  };
+}
+
+export interface WeeklyStats {
+  days: DayStats[];
+}

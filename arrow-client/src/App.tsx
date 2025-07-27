@@ -7,11 +7,13 @@ import {
 	ConnectionStatus,
 	SessionLogsUpdate,
 	NotificationEvent,
-	PostureLog
+	PostureLog,
+	WeeklyStats as WeeklyStatsType
 } from "./types";
 import PostureDisplay from "./components/PostureDisplay";
 import ConnectionIndicator from "./components/ConnectionIndicator";
 import SessionHistory from "./components/SessionHistory";
+import WeeklyStats from "./components/WeeklyStats";
 
 function App() {
 	const [postureUpdate, setPostureUpdate] = useState<PostureUpdate | null>(null);
@@ -20,6 +22,7 @@ function App() {
 		message: "Initializing..."
 	});
 	const [sessionLogs, setSessionLogs] = useState<PostureLog[]>([]);
+	const [weeklyStats, setWeeklyStats] = useState<WeeklyStatsType>({ days: [] });
 	const [isInitialized, setIsInitialized] = useState(false);
 
 	useEffect(() => {
@@ -133,6 +136,15 @@ function App() {
 		}
 	};
 
+	const fetchWeeklyStats = async () => {
+		try {
+			const stats = await invoke<WeeklyStatsType>("get_weekly_stats");
+			setWeeklyStats(stats);
+		} catch (error) {
+			console.error("Failed to fetch weekly stats:", error);
+		}
+	};
+
 	return (
 		<main className="app">
 			<header className="app-header">
@@ -152,6 +164,13 @@ function App() {
 					<SessionHistory
 						logs={sessionLogs}
 						onRefresh={fetchSessionLogs}
+					/>
+				</div>
+
+				<div className="weekly-section">
+					<WeeklyStats
+						stats={weeklyStats}
+						onRefresh={fetchWeeklyStats}
 					/>
 				</div>
 			</div>
